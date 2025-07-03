@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/reviews
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+kafka:
+  bootstrap-servers: localhost:9092
+
+sources:
+  - name: agoda
+    backend: minio # or s3 or gcs
+    bucket: reviews
+    folder: agoda/
+    last-processed-timestamp: 0
+  - name: booking
+    backend: minio
+    bucket: reviews
+    folder: booking/
+    last-processed-timestamp: 0
+  - name: expedia
+    backend: minio
+    bucket: reviews
+    folder: expedia/
+    last-processed-timestamp: 0
+
+fetcher:
+  poll-interval-ms: 60000
+
+flyway:
+  enabled: true
+  locations: classpath:db/migration 

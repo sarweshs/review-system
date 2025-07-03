@@ -1,0 +1,50 @@
+# Maven
+# Maven - ignore all target directories
+**/target/
+# But keep the wrapper jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Other ignores (unchanged)
+.idea/
+*.iml
+.classpath
+.project
+# ... rest of your current ignores
+
+# IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# Environment
+.env
+
+# Misc
+*.swp
+*~
+
+# Build
+/build/
+
+# Generated
+/generated/ 
