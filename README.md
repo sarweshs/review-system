@@ -6,7 +6,6 @@ This repository is a monorepo for the Review System, supporting both Java (Sprin
 
 - `review-core/`        — Shared Java models and logic
 - `review-service/`     — Main Spring Boot microservice
-- `storage-config/`     — (Future) Storage configuration module
 - `review-python/`      — Python microservices/utilities
 
 ## Java (Maven Multi-Module)
