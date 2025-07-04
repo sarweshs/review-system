@@ -100,13 +100,33 @@ def upload_to_minio(file_path, bucket_name, object_key, username, password, endp
 # Get review files to distribute
 def get_review_files():
     review_dir = "generated_reviews"
+    processed_dir = os.path.join(review_dir, "processed")
+    
+    # Create processed directory if it doesn't exist
+    os.makedirs(processed_dir, exist_ok=True)
+    
     if not os.path.exists(review_dir):
         logging.error(f"Review directory {review_dir} does not exist")
         return []
     
+    # Get files from generated_reviews, excluding any that might be in processed
     files = glob.glob(os.path.join(review_dir, "*.jl"))
     logging.info(f"Found {len(files)} review files to distribute")
     return files
+
+# Move file to processed folder
+def move_to_processed(file_path):
+    processed_dir = os.path.join("generated_reviews", "processed")
+    file_name = os.path.basename(file_path)
+    processed_path = os.path.join(processed_dir, file_name)
+    
+    try:
+        os.rename(file_path, processed_path)
+        logging.info(f"Moved {file_name} to processed folder")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to move {file_name} to processed folder: {e}")
+        return False
 
 # Distribute review files to storage destinations
 def distribute_reviews():
@@ -178,6 +198,8 @@ def distribute_reviews():
                 success = upload_to_s3(file_path, bucket_name, object_key, access_key, secret_key, endpoint_url)
                 if success:
                     logging.info(f"✅ Successfully distributed {file_name} to AWS S3 via {source['name']}")
+                    # Move file to processed folder after successful upload
+                    move_to_processed(file_path)
                 else:
                     logging.error(f"❌ Failed to distribute {file_name} to AWS S3 via {source['name']}")
                     
@@ -195,6 +217,8 @@ def distribute_reviews():
                 success = upload_to_minio(file_path, bucket_name, object_key, username, password, endpoint_url)
                 if success:
                     logging.info(f"✅ Successfully distributed {file_name} to MinIO via {source['name']}")
+                    # Move file to processed folder after successful upload
+                    move_to_processed(file_path)
                 else:
                     logging.error(f"❌ Failed to distribute {file_name} to MinIO via {source['name']}")
             else:
