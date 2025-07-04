@@ -1,1 +1,9 @@
-# Add your Python dependencies here 
+# Add your Python dependencies here
+# For data generation
+faker==25.8.0
+
+# For PostgreSQL DB connectivity
+psycopg2-binary==2.9.9
+
+# For Kafka producer
+kafka-python==2.0.2
