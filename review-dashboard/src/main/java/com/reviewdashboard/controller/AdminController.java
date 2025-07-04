@@ -8,6 +8,8 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 @Controller
 @RequestMapping("/admin")
@@ -59,5 +61,35 @@ public class AdminController {
             model.addAttribute("reviews", List.of());
         }
         return "admin";
+    }
+
+    @PostMapping("/source/update-active")
+    public String updateActive(@RequestParam(value = "activeIds", required = false) List<Long> activeIds, Model model) {
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        if (activeIds != null) {
+            for (Long id : activeIds) {
+                form.add("activeIds", id.toString());
+            }
+        }
+        try {
+            restTemplate.postForObject(SERVICE_URL + "/api/sources/admin/source/update-active", form, Void.class);
+            model.addAttribute("message", "Source status updated!");
+        } catch (Exception e) {
+            model.addAttribute("error", "Failed to update source status: " + e.getMessage());
+        }
+        return "redirect:/admin";
+    }
+
+    @PostMapping("/source/delete")
+    public String deleteSource(@RequestParam("id") Long id, Model model) {
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("id", id.toString());
+        try {
+            restTemplate.postForObject(SERVICE_URL + "/api/sources/admin/source/delete", form, Void.class);
+            model.addAttribute("message", "Source deleted!");
+        } catch (Exception e) {
+            model.addAttribute("error", "Failed to delete source: " + e.getMessage());
+        }
+        return "redirect:/admin";
     }
 } 

@@ -1,0 +1,1 @@
+ALTER TABLE review_sources ADD COLUMN active BOOLEAN DEFAULT TRUE; 

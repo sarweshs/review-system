@@ -65,4 +65,24 @@ public class ReviewSourceController {
     public Iterable<ReviewSource> getSources() {
         return reviewSourceRepository.findAll();
     }
+
+    @PostMapping("/admin/source/update-active")
+    public String updateActive(@RequestParam(value = "activeIds", required = false) Long[] activeIds) {
+        Iterable<ReviewSource> allSources = reviewSourceRepository.findAll();
+        java.util.Set<Long> activeSet = activeIds != null ? java.util.Arrays.stream(activeIds).collect(java.util.stream.Collectors.toSet()) : java.util.Collections.emptySet();
+        for (ReviewSource src : allSources) {
+            boolean shouldBeActive = activeSet.contains(src.getId());
+            if (src.getActive() == null || src.getActive() != shouldBeActive) {
+                src.setActive(shouldBeActive);
+                reviewSourceRepository.save(src);
+            }
+        }
+        return "redirect:/admin";
+    }
+
+    @PostMapping("/admin/source/delete")
+    public String deleteSource(@RequestParam("id") Long id) {
+        reviewSourceRepository.deleteById(id);
+        return "redirect:/admin";
+    }
 } 
