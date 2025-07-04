@@ -30,9 +30,9 @@ services:
     environment:
       - KAFKA_CFG_NODE_ID=0
       - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093 # Refer to 'kafka' service name
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 # Use 'kafka' here if other services connect to it by name
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
@@ -79,15 +79,14 @@ services:
     ports:
       - "8200:8200"
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_ROOT_TOKEN_ID: devroot
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
     cap_add:
       - IPC_LOCK
-    volumes:
-      - vault-data:/vault/file
-    command: server -dev
+    command: vault server -dev -dev-root-token-id=devroot -dev-listen-address=0.0.0.0:8200
+    restart: unless-stopped
 
-# Loki for log aggregation
+  # Loki for log aggregation
   loki:
     image: grafana/loki:2.9.2
     ports:
@@ -97,48 +96,49 @@ services:
       - loki_data:/loki  # This is critical for storage
     command: -config.file=/etc/loki/local-config.yaml
 
-# Promtail for log shipping
+  # Promtail for log shipping
   promtail:
     image: grafana/promtail:2.9.2
     volumes:
       - type: bind
         source: ./promtail-config.yaml
         target: /etc/promtail/config.yml
-      - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./logs:/logs
-    command: 
+      - /var/log:/var/log # Host's log directory
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro # Docker container logs
+      - ./logs:/logs # Your application's log directory (if logs are written here)
+    command:
       - -config.file=/etc/promtail/config.yml
       - -config.expand-env=true
     depends_on:
       - loki
 
- # review-service:
- #   build: ./review-service
- #   environment:
- #    - LOG_FILE_PATH=/logs/review-service.log
- #     - LOG_LEVEL=INFO
- #     - REVIEW_SERVICE_LOG_LEVEL=DEBUG
- #     - SPRING_PROFILES_ACTIVE=prod
- #   volumes:
- #     - logs:/logs
- #   depends_on:
- #     - postgres
- #     - kafka
- #     - redis
- #     - vault
+  # Uncomment and adjust these services if you want them to run within Docker Compose
+  # review-service:
+  #   build: ./review-service
+  #   environment:
+  #    - LOG_FILE_PATH=/logs/review-service.log
+  #    - LOG_LEVEL=INFO
+  #    - REVIEW_SERVICE_LOG_LEVEL=DEBUG
+  #    - SPRING_PROFILES_ACTIVE=prod
+  #   volumes:
+  #     - logs:/logs
+  #   depends_on:
+  #     - postgres
+  #     - kafka
+  #     - redis
+  #     - vault
 
- # review-dashboard:
- #   build: ./review-dashboard
- #   environment:
- #     - LOG_FILE_PATH=/logs/review-dashboard.log
- #     - LOG_LEVEL=INFO
- #     - REVIEW_DASHBOARD_LOG_LEVEL=DEBUG
- #     - SPRING_PROFILES_ACTIVE=prod
- #   volumes:
- #     - logs:/logs
- #   depends_on:
- #     - review-service
+  # review-dashboard:
+  #   build: ./review-dashboard
+  #   environment:
+  #     - LOG_FILE_PATH=/logs/review-dashboard.log
+  #     - LOG_LEVEL=INFO
+  #     - REVIEW_DASHBOARD_LOG_LEVEL=DEBUG
+  #     - SPRING_PROFILES_ACTIVE=prod
+  #   volumes:
+  #     - logs:/logs
+  #   depends_on:
+  #     - review-service
 
 # To run review-service and review-dashboard locally (not in Docker):
 # - Do NOT run these services via docker-compose
@@ -150,6 +150,5 @@ volumes:
   minio-data:
   kafka_data:
   keycloakdata:
-  vault-data:
   logs:
   loki_data:

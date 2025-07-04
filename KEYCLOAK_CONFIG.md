@@ -273,3 +273,29 @@ client-secret: NEW_SECRET
 ## 5. Update Application Configuration (if needed)
 
 Ensure roles and client config are in sync with your app setup.
+
+## Exporting realm file
+```bash
+docker exec -it review-system-keycloak-1 sh
+
+ls /opt/keycloak/data/h2/
+
+
+docker run --rm \
+  -v keycloakdata:/var/lib/keycloak/data \
+  -v $(pwd)/export:/opt/keycloak/data/export \
+  quay.io/keycloak/keycloak:24.0 \
+  export --dir /opt/keycloak/data/export \
+         --realm review-realm \
+         --users realm_file
+
+
+```
+
+## 6. Import Realm File
+```bash
+docker run --rm \
+  -v $(pwd)/export:/opt/keycloak/data/import \
+  quay.io/keycloak/keycloak:24.0\
+  import --dir /opt/keycloak/data/import
+```

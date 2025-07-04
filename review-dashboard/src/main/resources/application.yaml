@@ -11,7 +11,7 @@ spring:
         registration:
           keycloak:
             client-id: review-dashboard-client
-            client-secret: SL7jzG0phQHjJXERPuWolah79lMmW5A7
+            client-secret: WUBOQVFaO0WNLmRhlvgY1aeQ4Icdymm5
             scope: openid,profile,roles,email  # Added email scope which is supported
             authorization-grant-type: authorization_code
             redirect-uri: "http://localhost:8081/login/oauth2/code/keycloak"

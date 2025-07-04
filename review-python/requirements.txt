@@ -7,3 +7,9 @@ psycopg2-binary==2.9.9
 
 # For Kafka producer
 kafka-python==2.0.2
+
+sqlalchemy
+cryptography
+requests
+python-dotenv
+boto3==1.34.34

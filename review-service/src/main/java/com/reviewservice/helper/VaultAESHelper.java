@@ -10,7 +10,7 @@ import java.io.IOException;
 public class VaultAESHelper {
 
     private static final String VAULT_ADDR = "http://localhost:8200";
-    private static final String VAULT_TOKEN = "root";
+    private static final String VAULT_TOKEN = "devroot";
     private static final String SECRET_PATH = "/v1/secret/data/aes-key";
 
     public static String fetchKeyFromVault() throws IOException, InterruptedException {

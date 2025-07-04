@@ -6,6 +6,7 @@ import com.reviewservice.service.CredentialService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
@@ -74,7 +75,7 @@ public class ReviewSourceController {
     }
 
     @PostMapping("/admin/source/update-active")
-    public String updateActive(@RequestParam(value = "activeIds", required = false) Long[] activeIds) {
+    public ResponseEntity<Void> updateActive(@RequestParam(value = "activeIds", required = false) Long[] activeIds) {
         logger.info("Updating active status for sources");
         logger.debug("Active IDs: {}", (Object) activeIds);
         Iterable<ReviewSource> allSources = reviewSourceRepository.findAll();
@@ -86,11 +87,11 @@ public class ReviewSourceController {
                 reviewSourceRepository.save(src);
             }
         }
-        return "redirect:/admin";
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/admin/source/delete")
-    public String deleteSource(@RequestParam("id") Long id) {
+    public ResponseEntity<Void> deleteSource(@RequestParam("id") Long id) {
         logger.info("Deleting source with id={}", id);
         try {
             reviewSourceRepository.deleteById(id);
@@ -99,6 +100,6 @@ public class ReviewSourceController {
             logger.error("Failed to delete source with id={}", id, e);
             throw e;
         }
-        return "redirect:/admin";
+        return ResponseEntity.noContent().build();
     }
 } 

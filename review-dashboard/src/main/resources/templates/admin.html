@@ -178,32 +178,34 @@
         </table>
     </form>
     <h3>Configured Sources</h3>
+    <table border="1" style="border-collapse: collapse; min-width: 600px;">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>URI</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="src,iter : ${sources}">
+                <td th:text="${src.name}"></td>
+                <td th:text="${src.uri}"></td>
+                <td style="text-align: center;">
+                    <form th:action="@{/admin/source/update-active}" method="post" style="display:inline;">
+                        <input type="checkbox" th:name="activeIds" th:value="${src.id}" th:checked="${src.active}" onchange="this.form.submit()" />
+                    </form>
+                </td>
+                <td style="text-align: center;">
+                    <form th:action="@{/admin/source/delete}" method="post" style="display:inline;">
+                        <input type="hidden" name="id" th:value="${src.id}" />
+                        <button type="submit" style="background:#e53935; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
     <form th:action="@{/admin/source/update-active}" method="post" id="activeForm">
-        <table border="1" style="border-collapse: collapse; min-width: 600px;">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>URI</th>
-                    <th>Active</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr th:each="src,iter : ${sources}">
-                    <td th:text="${src.name}"></td>
-                    <td th:text="${src.uri}"></td>
-                    <td style="text-align: center;">
-                        <input type="checkbox" th:name="activeIds" th:value="${src.id}" th:checked="${src.active}" />
-                    </td>
-                    <td style="text-align: center;">
-                        <form th:action="@{/admin/source/delete}" method="post" style="display:inline;">
-                            <input type="hidden" name="id" th:value="${src.id}" />
-                            <button type="submit" style="background:#e53935; color:white; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
         <button type="submit" style="margin-top: 10px;">Save</button>
     </form>
 </div>

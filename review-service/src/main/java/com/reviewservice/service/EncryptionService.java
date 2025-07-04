@@ -25,7 +25,7 @@ public class EncryptionService {
 
     private byte[] loadKey() {
         String hexKey = redisTemplate.opsForValue().get(REDIS_KEY);
-        if (hexKey == null) {
+        if (hexKey == null || hexKey.trim().isEmpty()) {
             try {
                 hexKey = VaultAESHelper.fetchKeyFromVault();
                 // Optionally set an expiry (e.g., 24 hours)

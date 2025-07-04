@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 
 @Controller
 @RequestMapping("/admin")
@@ -83,8 +85,10 @@ public class AdminController {
             }
         }
         try {
-            restTemplate.postForObject(SERVICE_URL + "/api/sources/admin/source/update-active", form, Void.class);
-            logger.info("Source status updated");
+            ResponseEntity<Void> resp = restTemplate.postForEntity(SERVICE_URL + "/api/sources/admin/source/update-active", form, Void.class);
+            if (resp.getStatusCode() == HttpStatus.NO_CONTENT) {
+                logger.info("Source status updated");
+            }
             model.addAttribute("message", "Source status updated!");
         } catch (Exception e) {
             logger.error("Failed to update source status", e);
@@ -99,8 +103,10 @@ public class AdminController {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("id", id.toString());
         try {
-            restTemplate.postForObject(SERVICE_URL + "/api/sources/admin/source/delete", form, Void.class);
-            logger.info("Source deleted with id={}", id);
+            ResponseEntity<Void> resp = restTemplate.postForEntity(SERVICE_URL + "/api/sources/admin/source/delete", form, Void.class);
+            if (resp.getStatusCode() == HttpStatus.NO_CONTENT) {
+                logger.info("Source deleted with id={}", id);
+            }
             model.addAttribute("message", "Source deleted!");
         } catch (Exception e) {
             logger.error("Failed to delete source with id={}", id, e);
