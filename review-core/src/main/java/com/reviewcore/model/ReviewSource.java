@@ -10,7 +10,6 @@ public class ReviewSource {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
-    private String backend;
     private String uri;
     private LocalDateTime lastProcessedTimestamp;
     
@@ -21,8 +20,6 @@ public class ReviewSource {
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public String getBackend() { return backend; }
-    public void setBackend(String backend) { this.backend = backend; }
     public String getUri() { return uri; }
     public void setUri(String uri) { this.uri = uri; }
     public LocalDateTime getLastProcessedTimestamp() { return lastProcessedTimestamp; }

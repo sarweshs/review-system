@@ -7,7 +7,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = BasicCredential.class, name = "basic"),
     @JsonSubTypes.Type(value = ApiKeyCredential.class, name = "apikey"),
-    @JsonSubTypes.Type(value = OAuthCredential.class, name = "oauth")
+    @JsonSubTypes.Type(value = OAuthCredential.class, name = "oauth"),
+    @JsonSubTypes.Type(value = AwsCredential.class, name = "aws")
 })
 public abstract class Credential {
     private String type;

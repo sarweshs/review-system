@@ -1,0 +1,26 @@
+server:
+  port: 8081
+
+spring:
+  thymeleaf:
+    cache: false
+  profiles:
+    active: dev
+
+# Disable OAuth2 for development
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: dummy
+            client-secret: dummy
+            scope: openid, profile, roles
+            provider: keycloak
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:9999/realms/dummy
+            user-name-attribute: preferred_username 

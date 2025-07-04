@@ -6,15 +6,19 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.util.stream.Collectors;
 
 @Controller
 public class DashboardController {
 
     @GetMapping("/post-login")
     public String postLogin(@AuthenticationPrincipal OidcUser oidcUser) {
-        oidcUser.getAuthorities().forEach(auth -> System.out.println("Authority: " + auth.getAuthority()));
+        // Debug print all authorities
+        oidcUser.getAuthorities().forEach(auth ->
+                System.out.println("Authority: " + auth.getAuthority()));
 
-        if (oidcUser.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_admin"))) {
+        if (oidcUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"))) {
             return "redirect:/admin";
         } else {
             return "redirect:/user";
@@ -24,12 +28,18 @@ public class DashboardController {
     @GetMapping("/admin")
     public String adminPage(@AuthenticationPrincipal OidcUser oidcUser, Model model) {
         model.addAttribute("username", oidcUser.getPreferredUsername());
+        model.addAttribute("roles", oidcUser.getAuthorities().stream()
+                .map(a -> a.getAuthority())
+                .collect(Collectors.toList()));
         return "admin";
     }
 
     @GetMapping("/user")
     public String userPage(@AuthenticationPrincipal OidcUser oidcUser, Model model) {
         model.addAttribute("username", oidcUser.getPreferredUsername());
+        model.addAttribute("roles", oidcUser.getAuthorities().stream()
+                .map(a -> a.getAuthority())
+                .collect(Collectors.toList()));
         return "user";
     }
 }

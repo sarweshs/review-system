@@ -40,6 +40,13 @@ public class CredentialService {
     }
     
     /**
+     * Creates an AwsCredential for AWS S3 authentication
+     */
+    public AwsCredential createAwsCredential(String accessKeyId, String secretAccessKey) {
+        return new AwsCredential(accessKeyId, secretAccessKey);
+    }
+    
+    /**
      * Validates a credential based on its type
      */
     public boolean validateCredential(Credential credential) {
@@ -61,6 +68,11 @@ public class CredentialService {
                 OAuthCredential oauth = (OAuthCredential) credential;
                 return oauth.getClientId() != null && !oauth.getClientId().trim().isEmpty() &&
                        oauth.getClientSecret() != null && !oauth.getClientSecret().trim().isEmpty();
+                       
+            case "aws":
+                AwsCredential aws = (AwsCredential) credential;
+                return aws.getAccessKeyId() != null && !aws.getAccessKeyId().trim().isEmpty() &&
+                       aws.getSecretAccessKey() != null && !aws.getSecretAccessKey().trim().isEmpty();
                        
             default:
                 return false;
@@ -93,6 +105,14 @@ public class CredentialService {
             case "oauth":
                 OAuthCredential oauth = (OAuthCredential) credential;
                 headers.put("Authorization", "Bearer " + oauth.getAccessToken());
+                break;
+                
+            case "aws":
+                // AWS credentials are typically used with AWS SDK, not HTTP headers
+                // But we can set them as environment variables or use them directly
+                AwsCredential aws = (AwsCredential) credential;
+                headers.put("X-AWS-Access-Key-Id", aws.getAccessKeyId());
+                headers.put("X-AWS-Secret-Access-Key", aws.getSecretAccessKey());
                 break;
         }
         

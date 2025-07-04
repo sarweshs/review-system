@@ -29,7 +29,8 @@ public class ReviewFetcherService {
     public void fetchAndProcessReviews() {
         List<ReviewSource> sources = reviewSourceRepository.findAll();
         for (ReviewSource source : sources) {
-            String backend = source.getBackend().toLowerCase();
+            // Determine backend from URI
+            String backend = determineBackendFromUri(source.getUri());
             StorageService storageService = storageServices.get(backend + "StorageService");
             if (storageService == null) {
                 // Log or handle missing storage service
@@ -52,6 +53,27 @@ public class ReviewFetcherService {
                 }
             }
             // TODO: Implement logic to process files for this source using storageService
+        }
+    }
+    
+    /**
+     * Determines the backend type from the URI
+     */
+    private String determineBackendFromUri(String uri) {
+        if (uri == null || uri.trim().isEmpty()) {
+            return "s3"; // default to S3
+        }
+        
+        String lowerUri = uri.toLowerCase();
+        if (lowerUri.startsWith("s3://")) {
+            return "s3";
+        } else if (lowerUri.startsWith("minio://")) {
+            return "minio";
+        } else if (lowerUri.startsWith("gcs://") || lowerUri.startsWith("gs://")) {
+            return "gcs";
+        } else {
+            // Default to S3 if no protocol specified
+            return "s3";
         }
     }
 } 

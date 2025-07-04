@@ -17,19 +17,13 @@ kafka:
 
 sources:
   - name: agoda
-    backend: minio # or s3 or gcs
-    bucket: reviews
-    folder: agoda/
+    uri: minio://reviews/agoda/
     last-processed-timestamp: 0
   - name: booking
-    backend: minio
-    bucket: reviews
-    folder: booking/
+    uri: minio://reviews/booking/
     last-processed-timestamp: 0
   - name: expedia
-    backend: minio
-    bucket: reviews
-    folder: expedia/
+    uri: minio://reviews/expedia/
     last-processed-timestamp: 0
 
 fetcher:

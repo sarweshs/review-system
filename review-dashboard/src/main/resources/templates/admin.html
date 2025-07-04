@@ -59,6 +59,8 @@
             document.getElementById('oauthFields3').style.display = 'none';
             document.getElementById('oauthFields4').style.display = 'none';
             document.getElementById('oauthFields5').style.display = 'none';
+            document.getElementById('awsFields').style.display = 'none';
+            document.getElementById('awsFields2').style.display = 'none';
             // If no credential, do nothing else
             if (!credentialType) return;
             // Show relevant fields based on credential type
@@ -77,6 +79,10 @@
                     document.getElementById('oauthFields3').style.display = 'table-row';
                     document.getElementById('oauthFields4').style.display = 'table-row';
                     document.getElementById('oauthFields5').style.display = 'table-row';
+                    break;
+                case 'aws':
+                    document.getElementById('awsFields').style.display = 'table-row';
+                    document.getElementById('awsFields2').style.display = 'table-row';
                     break;
             }
         }
@@ -106,12 +112,8 @@
                 <td><input type="text" id="name" name="name" required></td>
             </tr>
             <tr>
-                <td><label for="backend">Backend:</label></td>
-                <td><input type="text" id="backend" name="backend" required></td>
-            </tr>
-            <tr>
                 <td><label for="uri">URI:</label></td>
-                <td><input type="text" id="uri" name="uri" required></td>
+                <td><input type="text" id="uri" name="uri" required placeholder="s3://bucket-name/folder/ or minio://bucket-name/folder/"></td>
             </tr>
             <tr>
                 <td><label for="credentialType">Credential Type:</label></td>
@@ -121,6 +123,7 @@
                         <option value="basic">Basic Auth</option>
                         <option value="apikey">API Key</option>
                         <option value="oauth">OAuth</option>
+                        <option value="aws">AWS S3</option>
                     </select>
                 </td>
             </tr>
@@ -160,6 +163,14 @@
                 <td><label for="tokenUrl">Token URL:</label></td>
                 <td><input type="text" id="tokenUrl" name="tokenUrl"></td>
             </tr>
+            <tr id="awsFields" style="display:none;">
+                <td><label for="awsAccessKeyId">AWS Access Key ID:</label></td>
+                <td><input type="text" id="awsAccessKeyId" name="awsAccessKeyId"></td>
+            </tr>
+            <tr id="awsFields2" style="display:none;">
+                <td><label for="awsSecretAccessKey">AWS Secret Access Key:</label></td>
+                <td><input type="password" id="awsSecretAccessKey" name="awsSecretAccessKey"></td>
+            </tr>
             <tr>
                 <td></td>
                 <td><button type="submit">Add Source</button></td>
@@ -168,7 +179,7 @@
     </form>
     <h3>Configured Sources</h3>
     <ul>
-        <li th:each="src : ${sources}" th:text="${src.name} + ' (' + ${src.backend} + ') - ' + ${src.uri}"></li>
+        <li th:each="src : ${sources}" th:text="${src.name} + ' - ' + ${src.uri}"></li>
     </ul>
 </div>
 

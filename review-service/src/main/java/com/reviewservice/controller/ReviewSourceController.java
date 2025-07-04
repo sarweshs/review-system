@@ -19,7 +19,6 @@ public class ReviewSourceController {
     public ReviewSource addSource(@RequestBody Map<String, String> params) {
         ReviewSource source = new ReviewSource();
         source.setName(params.get("name"));
-        source.setBackend(params.get("backend"));
         source.setUri(params.get("uri"));
         // Handle credential
         String credentialType = params.get("credentialType");
@@ -39,6 +38,12 @@ public class ReviewSourceController {
                         params.get("accessToken"),
                         params.get("refreshToken"),
                         params.get("tokenUrl")
+                    );
+                    break;
+                case "aws":
+                    credential = credentialService.createAwsCredential(
+                        params.get("awsAccessKeyId"),
+                        params.get("awsSecretAccessKey")
                     );
                     break;
             }
