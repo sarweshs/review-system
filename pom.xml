@@ -10,6 +10,7 @@
     <modules>
         <module>review-core</module>
         <module>review-service</module>
+        <module>review-dashboard</module>
     </modules>
     <properties>
         <java.version>17</java.version>

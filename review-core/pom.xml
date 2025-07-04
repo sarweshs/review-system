@@ -9,6 +9,10 @@
     </parent>
     <artifactId>review-core</artifactId>
     <name>Review Core</name>
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>jakarta.persistence</groupId>
