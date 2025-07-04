@@ -1,6 +1,7 @@
 package com.reviewservice.kafka;
 
 import com.reviewcore.model.Review;
+import com.reviewservice.config.TestConfig;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -27,7 +29,8 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.profiles.active=test")
+@Import(TestConfig.class)
 @EmbeddedKafka(
         topics = {"reviews"},
         partitions = 1,

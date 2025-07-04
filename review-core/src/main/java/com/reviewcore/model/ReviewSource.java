@@ -13,6 +13,9 @@ public class ReviewSource {
     private String backend;
     private String uri;
     private LocalDateTime lastProcessedTimestamp;
+    
+    @Column(columnDefinition = "TEXT")
+    private String credentialJson;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -24,4 +27,7 @@ public class ReviewSource {
     public void setUri(String uri) { this.uri = uri; }
     public LocalDateTime getLastProcessedTimestamp() { return lastProcessedTimestamp; }
     public void setLastProcessedTimestamp(LocalDateTime lastProcessedTimestamp) { this.lastProcessedTimestamp = lastProcessedTimestamp; }
+    
+    public String getCredentialJson() { return credentialJson; }
+    public void setCredentialJson(String credentialJson) { this.credentialJson = credentialJson; }
 } 

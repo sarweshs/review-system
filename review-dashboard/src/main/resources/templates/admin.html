@@ -1,8 +1,195 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head><title>Admin Dashboard</title></head>
+<head>
+    <title>Admin Dashboard</title>
+    <style>
+        nav { margin-bottom: 20px; }
+        nav a { margin-right: 20px; }
+        .menu-content { display: none; }
+        .menu-content.active { display: block; }
+        .form-table {
+            border-collapse: separate;
+            border-spacing: 10px 12px;
+        }
+        .form-table td {
+            padding: 4px 8px;
+        }
+        .form-table label {
+            font-weight: bold;
+            display: inline-block;
+            min-width: 120px;
+            text-align: right;
+        }
+        .form-table input[type="text"] {
+            width: 250px;
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-table button {
+            padding: 6px 18px;
+            border-radius: 4px;
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .form-table button:hover {
+            background: #125ea2;
+        }
+    </style>
+    <script>
+        function showMenu(menu) {
+            document.querySelectorAll('.menu-content').forEach(function(div) {
+                div.classList.remove('active');
+            });
+            document.getElementById(menu).classList.add('active');
+        }
+        
+        function toggleCredentialFields() {
+            const credentialType = document.getElementById('credentialType').value;
+            // Hide all credential fields
+            document.getElementById('basicFields').style.display = 'none';
+            document.getElementById('basicFields2').style.display = 'none';
+            document.getElementById('apikeyFields').style.display = 'none';
+            document.getElementById('apikeyFields2').style.display = 'none';
+            document.getElementById('oauthFields').style.display = 'none';
+            document.getElementById('oauthFields2').style.display = 'none';
+            document.getElementById('oauthFields3').style.display = 'none';
+            document.getElementById('oauthFields4').style.display = 'none';
+            document.getElementById('oauthFields5').style.display = 'none';
+            // If no credential, do nothing else
+            if (!credentialType) return;
+            // Show relevant fields based on credential type
+            switch(credentialType) {
+                case 'basic':
+                    document.getElementById('basicFields').style.display = 'table-row';
+                    document.getElementById('basicFields2').style.display = 'table-row';
+                    break;
+                case 'apikey':
+                    document.getElementById('apikeyFields').style.display = 'table-row';
+                    document.getElementById('apikeyFields2').style.display = 'table-row';
+                    break;
+                case 'oauth':
+                    document.getElementById('oauthFields').style.display = 'table-row';
+                    document.getElementById('oauthFields2').style.display = 'table-row';
+                    document.getElementById('oauthFields3').style.display = 'table-row';
+                    document.getElementById('oauthFields4').style.display = 'table-row';
+                    document.getElementById('oauthFields5').style.display = 'table-row';
+                    break;
+            }
+        }
+    </script>
+</head>
 <body>
 <h1>Welcome Admin: <span th:text="${username}"></span></h1>
 <a href="/logout">Logout</a>
+<nav>
+    <a href="/admin/source/add" onclick="showMenu('source-config');return false;">Configure Source</a>
+    <a href="/admin/reviews" onclick="showMenu('see-reviews');return false;">See Reviews</a>
+    <a href="#" onclick="showMenu('nlp-page');return false;">NLP</a>
+</nav>
+
+<div id="source-config" class="menu-content active">
+    <h2>Configure Source</h2>
+    <div th:if="${message}" style="color: green; margin: 10px 0; padding: 10px; background: #e8f5e8; border-radius: 4px;">
+        <span th:text="${message}"></span>
+    </div>
+    <div th:if="${error}" style="color: red; margin: 10px 0; padding: 10px; background: #ffe8e8; border-radius: 4px;">
+        <span th:text="${error}"></span>
+    </div>
+    <form th:action="@{/admin/source/add}" method="post">
+        <table class="form-table">
+            <tr>
+                <td><label for="name">Source Name:</label></td>
+                <td><input type="text" id="name" name="name" required></td>
+            </tr>
+            <tr>
+                <td><label for="backend">Backend:</label></td>
+                <td><input type="text" id="backend" name="backend" required></td>
+            </tr>
+            <tr>
+                <td><label for="uri">URI:</label></td>
+                <td><input type="text" id="uri" name="uri" required></td>
+            </tr>
+            <tr>
+                <td><label for="credentialType">Credential Type:</label></td>
+                <td>
+                    <select id="credentialType" name="credentialType" onchange="toggleCredentialFields()">
+                        <option value="">No Credential</option>
+                        <option value="basic">Basic Auth</option>
+                        <option value="apikey">API Key</option>
+                        <option value="oauth">OAuth</option>
+                    </select>
+                </td>
+            </tr>
+            <tr id="basicFields" style="display:none;">
+                <td><label for="username">Username:</label></td>
+                <td><input type="text" id="username" name="username"></td>
+            </tr>
+            <tr id="basicFields2" style="display:none;">
+                <td><label for="password">Password:</label></td>
+                <td><input type="password" id="password" name="password"></td>
+            </tr>
+            <tr id="apikeyFields" style="display:none;">
+                <td><label for="apiKey">API Key:</label></td>
+                <td><input type="text" id="apiKey" name="apiKey"></td>
+            </tr>
+            <tr id="apikeyFields2" style="display:none;">
+                <td><label for="headerName">Header Name:</label></td>
+                <td><input type="text" id="headerName" name="headerName" value="X-API-Key"></td>
+            </tr>
+            <tr id="oauthFields" style="display:none;">
+                <td><label for="clientId">Client ID:</label></td>
+                <td><input type="text" id="clientId" name="clientId"></td>
+            </tr>
+            <tr id="oauthFields2" style="display:none;">
+                <td><label for="clientSecret">Client Secret:</label></td>
+                <td><input type="password" id="clientSecret" name="clientSecret"></td>
+            </tr>
+            <tr id="oauthFields3" style="display:none;">
+                <td><label for="accessToken">Access Token:</label></td>
+                <td><input type="text" id="accessToken" name="accessToken"></td>
+            </tr>
+            <tr id="oauthFields4" style="display:none;">
+                <td><label for="refreshToken">Refresh Token:</label></td>
+                <td><input type="text" id="refreshToken" name="refreshToken"></td>
+            </tr>
+            <tr id="oauthFields5" style="display:none;">
+                <td><label for="tokenUrl">Token URL:</label></td>
+                <td><input type="text" id="tokenUrl" name="tokenUrl"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><button type="submit">Add Source</button></td>
+            </tr>
+        </table>
+    </form>
+    <h3>Configured Sources</h3>
+    <ul>
+        <li th:each="src : ${sources}" th:text="${src.name} + ' (' + ${src.backend} + ') - ' + ${src.uri}"></li>
+    </ul>
+</div>
+
+<div id="see-reviews" class="menu-content">
+    <h2>See Reviews</h2>
+    <table border="1">
+        <tr><th>ID</th><th>Hotel</th><th>Platform</th><th>Source</th><th>Comment</th></tr>
+        <tr th:each="review : ${reviews}">
+            <td th:text="${review.id}"></td>
+            <td th:text="${review.hotelName}"></td>
+            <td th:text="${review.platform}"></td>
+            <td th:text="${review.source}"></td>
+            <td th:text="${review.comment}"></td>
+        </tr>
+    </table>
+</div>
+
+<div id="nlp-page" class="menu-content">
+    <h2>NLP Analysis</h2>
+    <p>This page is common for both admin and user. (Content to be implemented)</p>
+</div>
+
 </body>
 </html>

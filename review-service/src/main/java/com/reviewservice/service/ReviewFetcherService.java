@@ -22,6 +22,8 @@ public class ReviewFetcherService {
     private ReviewParser reviewParser;
     @Autowired
     private ReviewSourceRepository reviewSourceRepository;
+    @Autowired
+    private CredentialService credentialService;
 
     @Scheduled(fixedDelayString = "${fetcher.poll-interval-ms:60000}")
     public void fetchAndProcessReviews() {
@@ -32,6 +34,22 @@ public class ReviewFetcherService {
             if (storageService == null) {
                 // Log or handle missing storage service
                 continue;
+            }
+            // --- Credential handling logic ---
+            // If no credential, fetch directly
+            if (source.getCredentialJson() == null || source.getCredentialJson().isEmpty()) {
+                // Download from source directly, no auth headers
+                // Example: storageService.getFile(key) or similar
+            } else {
+                try {
+                    // Decrypt credential and get headers
+                    var credential = credentialService.decryptCredential(source.getCredentialJson());
+                    var headers = credentialService.getAuthHeaders(credential);
+                    // Use headers in your storageService implementation if needed
+                } catch (Exception e) {
+                    // Log error and skip this source
+                    continue;
+                }
             }
             // TODO: Implement logic to process files for this source using storageService
         }

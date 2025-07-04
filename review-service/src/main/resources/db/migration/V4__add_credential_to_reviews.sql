@@ -1,0 +1,1 @@
+ALTER TABLE review_sources ADD COLUMN IF NOT EXISTS credential_json TEXT; 

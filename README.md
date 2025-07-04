@@ -5,7 +5,8 @@ This repository is a monorepo for the Review System, supporting both Java (Sprin
 ## Structure
 
 - `review-core/`        — Shared Java models and logic
-- `review-service/`     — Main Spring Boot microservice
+- `review-service/`     — Main Spring Boot microservice (now runs on port 7070)
+- `review-dashboard/`   — Dashboard/UI module (runs on port 8081)
 - `review-python/`      — Python microservices/utilities
 
 ## Java (Maven Multi-Module)
@@ -17,6 +18,16 @@ This repository is a monorepo for the Review System, supporting both Java (Sprin
 
 ## Python
 - See `review-python/README.md` for setup instructions.
+
+## Ports
+- **Keycloak**: 8080 (for authentication/SSO)
+- **review-service**: 7070 (Spring Boot API)
+- **review-dashboard**: 8081 (UI/dashboard)
+
+## Keycloak Integration
+- The system uses Keycloak (running on port 8080) for authentication and SSO.
+- Make sure Keycloak is running and configured with the appropriate realms, clients, and users for your environment.
+- The review-service and review-dashboard modules are configured to use Keycloak for OAuth2/OIDC login and security.
 
 ## Adding More Modules
 - To add a new Java module: create a new directory, add a `pom.xml`, and add it to the `<modules>` section in the root `pom.xml`.
@@ -112,3 +123,8 @@ storage:
 
 ## License
 MIT 
+
+## Troubleshooting
+docker-compose down -v
+docker-compose build --no-cache
+docker-compose up -d
