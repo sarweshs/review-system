@@ -1,0 +1,6 @@
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.reviewdashboard: ${REVIEW_DASHBOARD_LOG_LEVEL:DEBUG}
+  file:
+    name: ${LOG_FILE_PATH:./logs/review-dashboard.log} 

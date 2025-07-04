@@ -87,9 +87,69 @@ services:
       - vault-data:/vault/file
     command: server -dev
 
+# Loki for log aggregation
+  loki:
+    image: grafana/loki:2.9.2
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki  # This is critical for storage
+    command: -config.file=/etc/loki/local-config.yaml
+
+# Promtail for log shipping
+  promtail:
+    image: grafana/promtail:2.9.2
+    volumes:
+      - type: bind
+        source: ./promtail-config.yaml
+        target: /etc/promtail/config.yml
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./logs:/logs
+    command: 
+      - -config.file=/etc/promtail/config.yml
+      - -config.expand-env=true
+    depends_on:
+      - loki
+
+ # review-service:
+ #   build: ./review-service
+ #   environment:
+ #    - LOG_FILE_PATH=/logs/review-service.log
+ #     - LOG_LEVEL=INFO
+ #     - REVIEW_SERVICE_LOG_LEVEL=DEBUG
+ #     - SPRING_PROFILES_ACTIVE=prod
+ #   volumes:
+ #     - logs:/logs
+ #   depends_on:
+ #     - postgres
+ #     - kafka
+ #     - redis
+ #     - vault
+
+ # review-dashboard:
+ #   build: ./review-dashboard
+ #   environment:
+ #     - LOG_FILE_PATH=/logs/review-dashboard.log
+ #     - LOG_LEVEL=INFO
+ #     - REVIEW_DASHBOARD_LOG_LEVEL=DEBUG
+ #     - SPRING_PROFILES_ACTIVE=prod
+ #   volumes:
+ #     - logs:/logs
+ #   depends_on:
+ #     - review-service
+
+# To run review-service and review-dashboard locally (not in Docker):
+# - Do NOT run these services via docker-compose
+# - Run them with Maven or your IDE
+# - Logs will be written to ./logs/ (bind-mount this directory to Promtail)
+
 volumes:
   pgdata:
   minio-data:
   kafka_data:
   keycloakdata:
   vault-data:
+  logs:
+  loki_data:

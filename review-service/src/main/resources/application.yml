@@ -38,4 +38,11 @@ server:
 
 app:
   encryption:
-    key: ${ENCRYPTION_KEY:defaultEncryptionKey12345678901234567890123456789012} 
+    key: ${ENCRYPTION_KEY:defaultEncryptionKey12345678901234567890123456789012}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.reviewservice: ${REVIEW_SERVICE_LOG_LEVEL:DEBUG}
+  file:
+    name: ${LOG_FILE_PATH:./logs/review-service.log} 
