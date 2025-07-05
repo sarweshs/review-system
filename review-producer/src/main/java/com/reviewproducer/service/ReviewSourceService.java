@@ -29,7 +29,12 @@ public class ReviewSourceService {
     }
 
     public List<ReviewSource> getActiveSources() {
-        return reviewSourceRepository.findAllActive();
+        try {
+            return reviewSourceRepository.findAllActive();
+        } catch (Exception e) {
+            log.error("Failed to fetch active review sources from database", e);
+            return List.of();
+        }
     }
 
     @Scheduled(fixedDelayString = "${review-source-job.fixed-delay-ms:60000}")
@@ -40,78 +45,140 @@ public class ReviewSourceService {
         }
         
         log.info("Starting scheduled review source processing job");
-        List<ReviewSource> sources = getActiveSources();
         
-        if (sources.isEmpty()) {
-            log.info("No active review sources found");
-            System.out.println("No active review sources found");
-            return;
-        }
-        
-        log.info("Found {} active review sources", sources.size());
-        System.out.println("Found " + sources.size() + " active review sources");
-        
-        for (ReviewSource source : sources) {
-            processReviewSource(source);
+        try {
+            List<ReviewSource> sources = getActiveSources();
+            
+            if (sources.isEmpty()) {
+                log.info("No active review sources found");
+                return;
+            }
+            
+            log.info("Found {} active review sources", sources.size());
+            
+            int successCount = 0;
+            int failureCount = 0;
+            
+            for (ReviewSource source : sources) {
+                try {
+                    boolean success = processReviewSource(source);
+                    if (success) {
+                        successCount++;
+                    } else {
+                        failureCount++;
+                    }
+                } catch (Exception e) {
+                    log.error("Unexpected error processing review source: {}", source.getName(), e);
+                    failureCount++;
+                }
+            }
+            
+            log.info("Review source processing completed. Success: {}, Failures: {}", successCount, failureCount);
+            
+        } catch (Exception e) {
+            log.error("Critical error in scheduled review source processing job", e);
         }
     }
     
-    private void processReviewSource(ReviewSource source) {
+    private boolean processReviewSource(ReviewSource source) {
         log.info("Processing review source: {} (URI: {})", source.getName(), source.getUri());
-        System.out.println("Processing review source: " + source.getName() + " (URI: " + source.getUri() + ")");
         
         try {
+            // Validate URI format
+            if (source.getUri() == null || source.getUri().trim().isEmpty()) {
+                log.error("Invalid URI for source: {} - URI is null or empty", source.getName());
+                return false;
+            }
+            
             // Decrypt credentials if present
             Credential credential = null;
             if (source.getCredentialJson() != null && !source.getCredentialJson().trim().isEmpty()) {
                 try {
                     credential = credentialService.decryptCredential(source.getCredentialJson());
                     log.info("Successfully decrypted credentials for source: {}", source.getName());
-                    System.out.println("Successfully decrypted credentials for source: " + source.getName());
                 } catch (Exception e) {
-                    log.error("Failed to decrypt credentials for source: {}", source.getName(), e);
-                    System.out.println("Failed to decrypt credentials for source: " + source.getName() + " - " + e.getMessage());
-                    return;
+                    log.error("Failed to decrypt credentials for source: {} - {}", source.getName(), e.getMessage(), e);
+                    return false;
                 }
             } else {
-                log.info("No credentials found for source: {}", source.getName());
-                System.out.println("No credentials found for source: " + source.getName());
+                log.info("No credentials found for source: {} - proceeding with anonymous access", source.getName());
             }
             
             // Create storage service
-            StorageService storageService = storageServiceFactory.createStorageService(source.getUri(), credential);
-            if (storageService == null) {
-                log.error("Failed to create storage service for source: {}", source.getName());
-                System.out.println("Failed to create storage service for source: " + source.getName());
-                return;
+            StorageService storageService;
+            try {
+                storageService = storageServiceFactory.createStorageService(source.getUri(), credential);
+                if (storageService == null) {
+                    log.error("Failed to create storage service for source: {} - unsupported URI scheme or invalid configuration", source.getName());
+                    return false;
+                }
+            } catch (Exception e) {
+                log.error("Error creating storage service for source: {} - {}", source.getName(), e.getMessage(), e);
+                return false;
             }
             
             // Extract prefix from URI path
             String prefix = extractPrefixFromUri(source.getUri());
-            log.info("Using prefix: {} for source: {}", prefix, source.getName());
-            System.out.println("Using prefix: " + prefix + " for source: " + source.getName());
+            if (prefix == null) {
+                log.error("Failed to extract prefix from URI for source: {}", source.getName());
+                return false;
+            }
             
-            // List files
-            List<String> files = storageService.listReviewFiles(prefix);
+            log.info("Using prefix: {} for source: {}", prefix, source.getName());
+            
+            // List files with timeout and retry logic
+            List<String> files = listFilesWithRetry(storageService, prefix, source.getName());
+            
+            if (files == null) {
+                // Error occurred during file listing
+                return false;
+            }
             
             if (files.isEmpty()) {
                 log.info("No .jl files found for source: {}", source.getName());
-                System.out.println("No .jl files found for source: " + source.getName());
             } else {
                 log.info("Found {} .jl files for source: {}", files.size(), source.getName());
-                System.out.println("Found " + files.size() + " .jl files for source: " + source.getName());
                 
-                // Print file names
+                // Log file names at DEBUG level
                 for (String file : files) {
-                    log.info("File to process: {}", file);
-                    System.out.println("  - " + file);
+                    log.debug("File to process: {}", file);
                 }
             }
             
+            return true;
+            
         } catch (Exception e) {
-            log.error("Error processing review source: {}", source.getName(), e);
-            System.out.println("Error processing review source: " + source.getName() + " - " + e.getMessage());
+            log.error("Error processing review source: {} - {}", source.getName(), e.getMessage(), e);
+            return false;
         }
+    }
+    
+    private List<String> listFilesWithRetry(StorageService storageService, String prefix, String sourceName) {
+        int maxRetries = 3;
+        int retryDelayMs = 1000;
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return storageService.listReviewFiles(prefix);
+            } catch (Exception e) {
+                log.warn("Attempt {} failed to list files for source: {} - {}", attempt, sourceName, e.getMessage());
+                
+                if (attempt == maxRetries) {
+                    log.error("All {} attempts failed to list files for source: {} - {}", maxRetries, sourceName, e.getMessage(), e);
+                    return null;
+                }
+                
+                try {
+                    Thread.sleep(retryDelayMs * attempt); // Exponential backoff
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.error("Interrupted while waiting for retry for source: {}", sourceName);
+                    return null;
+                }
+            }
+        }
+        
+        return null;
     }
     
     private String extractPrefixFromUri(String uri) {
@@ -131,8 +198,8 @@ public class ReviewSourceService {
             
             return path;
         } catch (Exception e) {
-            log.error("Error extracting prefix from URI: {}", uri, e);
-            return "";
+            log.error("Error extracting prefix from URI: {} - {}", uri, e.getMessage(), e);
+            return null;
         }
     }
 } 

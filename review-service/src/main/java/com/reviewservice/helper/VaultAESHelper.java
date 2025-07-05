@@ -1,5 +1,6 @@
 package com.reviewservice.helper;
 
+import lombok.extern.slf4j.Slf4j;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
@@ -7,6 +8,7 @@ import java.net.http.*;
 import java.net.URI;
 import java.io.IOException;
 
+@Slf4j
 public class VaultAESHelper {
 
     private static final String VAULT_ADDR = "http://localhost:8200";
@@ -14,6 +16,8 @@ public class VaultAESHelper {
     private static final String SECRET_PATH = "/v1/secret/data/aes-key";
 
     public static String fetchKeyFromVault() throws IOException, InterruptedException {
+        log.debug("Fetching AES key from Vault at: {}", VAULT_ADDR + SECRET_PATH);
+        
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(VAULT_ADDR + SECRET_PATH))
@@ -29,6 +33,7 @@ public class VaultAESHelper {
         int end = body.indexOf("\"", start);
         String hexKey = body.substring(start, end);
 
+        log.debug("Successfully fetched AES key from Vault");
         return hexKey;
     }
 
@@ -43,6 +48,8 @@ public class VaultAESHelper {
     }
 
     public static String encrypt(String plaintext, byte[] keyBytes) throws Exception {
+        log.debug("Encrypting plaintext using AES");
+        
         SecretKeySpec key = new SecretKeySpec(keyBytes, "AES");
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key);
@@ -51,6 +58,8 @@ public class VaultAESHelper {
     }
 
     public static String decrypt(String ciphertext, byte[] keyBytes) throws Exception {
+        log.debug("Decrypting ciphertext using AES");
+        
         SecretKeySpec key = new SecretKeySpec(keyBytes, "AES");
         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, key);
@@ -60,6 +69,8 @@ public class VaultAESHelper {
     }
 
     public static void main(String[] args) throws Exception {
+        log.info("Starting VaultAESHelper test");
+        
         String hexKey = fetchKeyFromVault();
         byte[] key = hexToBytes(hexKey);
 
@@ -67,8 +78,10 @@ public class VaultAESHelper {
         String encrypted = encrypt(plaintext, key);
         String decrypted = decrypt(encrypted, key);
 
-        System.out.println("Original : " + plaintext);
-        System.out.println("Encrypted: " + encrypted);
-        System.out.println("Decrypted: " + decrypted);
+        log.info("Original: {}", plaintext);
+        log.info("Encrypted: {}", encrypted);
+        log.info("Decrypted: {}", decrypted);
+        
+        log.info("VaultAESHelper test completed successfully");
     }
 }

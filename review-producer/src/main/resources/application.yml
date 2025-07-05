@@ -48,14 +48,32 @@ kafka:
     reviews: reviews
     bad-reviews: bad-reviews
 
-# Logging configuration
+# Enhanced Logging configuration
 logging:
   level:
+    root: INFO
     com.reviewproducer: DEBUG
+    com.reviewcore: DEBUG
     org.springframework.kafka: INFO
     org.apache.kafka: WARN
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  
+  file:
+    name: logs/review-producer.log
+    max-size: 10MB
+    max-history: 30
+  
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
 
 # Actuator configuration
 management:

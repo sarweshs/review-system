@@ -1,5 +1,6 @@
 package com.reviewservice.storage;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -12,6 +13,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class S3StorageService implements StorageService {
     
@@ -31,12 +33,14 @@ public class S3StorageService implements StorageService {
     
     private S3Client getS3Client() {
         if (s3Client == null) {
+            log.debug("Initializing S3 client for endpoint: {} and bucket: {}", endpoint, bucket);
             s3Client = S3Client.builder()
                     .credentialsProvider(StaticCredentialsProvider.create(
                             AwsBasicCredentials.create(accessKey, secretKey)))
                     .endpointOverride(URI.create(endpoint))
                     .region(Region.US_EAST_1) // required but not used by Storj
                     .build();
+            log.info("S3 client initialized successfully");
         }
         return s3Client;
     }
@@ -44,6 +48,8 @@ public class S3StorageService implements StorageService {
     @Override
     public List<String> listReviewFiles(String prefix) {
         try {
+            log.debug("Listing S3 files in bucket: {} with prefix: {}", bucket, prefix);
+            
             ListObjectsV2Response response = getS3Client().listObjectsV2(
                 ListObjectsV2Request.builder()
                     .bucket(bucket)
@@ -51,12 +57,14 @@ public class S3StorageService implements StorageService {
                     .build()
             );
             
-            return response.contents().stream()
+            List<String> files = response.contents().stream()
                     .map(S3Object::key)
                     .collect(Collectors.toList());
+            
+            log.debug("Found {} files in S3 bucket with prefix: {}", files.size(), prefix);
+            return files;
         } catch (Exception e) {
-            // Log error and return empty list
-            System.err.println("Error listing S3 files: " + e.getMessage());
+            log.error("Error listing S3 files: {}", e.getMessage(), e);
             return List.of();
         }
     }
@@ -64,15 +72,19 @@ public class S3StorageService implements StorageService {
     @Override
     public byte[] getFile(String key) {
         try {
-            return getS3Client().getObjectAsBytes(
+            log.debug("Getting S3 file: {} from bucket: {}", key, bucket);
+            
+            byte[] content = getS3Client().getObjectAsBytes(
                 GetObjectRequest.builder()
                     .bucket(bucket)
                     .key(key)
                     .build()
             ).asByteArray();
+            
+            log.debug("Successfully retrieved S3 file: {} ({} bytes)", key, content.length);
+            return content;
         } catch (Exception e) {
-            // Log error and return empty array
-            System.err.println("Error getting S3 file " + key + ": " + e.getMessage());
+            log.error("Error getting S3 file {}: {}", key, e.getMessage(), e);
             return new byte[0];
         }
     }
@@ -81,13 +93,14 @@ public class S3StorageService implements StorageService {
     public void markFileProcessed(String key) {
         // TODO: Implement processed file tracking
         // Could use a separate bucket or database to track processed files
-        System.out.println("Marking file as processed: " + key);
+        log.info("Marking file as processed: {}", key);
     }
 
     @Override
     public boolean isFileProcessed(String key) {
         // TODO: Implement processed file check
         // Could check against a separate bucket or database
+        log.debug("Checking if file is processed: {} (not implemented, returning false)", key);
         return false;
     }
 } 

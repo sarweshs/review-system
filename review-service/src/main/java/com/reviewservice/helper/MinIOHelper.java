@@ -6,12 +6,14 @@ import io.minio.GetObjectArgs;
 import io.minio.Result;
 import io.minio.messages.Item;
 import io.minio.errors.MinioException;
+import lombok.extern.slf4j.Slf4j;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
+@Slf4j
 public class MinIOHelper {
     private final MinioClient minioClient;
     private final String bucketName;
@@ -22,10 +24,12 @@ public class MinIOHelper {
                 .credentials(accessKey, secretKey)
                 .build();
         this.bucketName = bucketName;
+        log.info("MinIO Helper initialized for bucket: {} at endpoint: {}", bucketName, endpoint);
     }
+    
     public void processFilesIncrementally(Date lastProcessedTime) throws Exception {
         try {
-            System.out.println("Listing objects in bucket: " + bucketName);
+            log.info("Listing objects in bucket: {}", bucketName);
             
             // List all objects in the bucket
             Iterable<Result<Item>> objects = minioClient.listObjects(
@@ -44,43 +48,41 @@ public class MinIOHelper {
                 Item item = result.get();
                 ZonedDateTime objectModifiedTime = item.lastModified();
 
-                System.out.println("Found file: " + item.objectName() + " (modified: " + objectModifiedTime + ")");
+                log.debug("Found file: {} (modified: {})", item.objectName(), objectModifiedTime);
 
                 // Skip if this file was modified before our last processed time
                 if (lastProcessedTime != null &&
                         objectModifiedTime.toInstant().isBefore(lastProcessedTime.toInstant())) {
-                    System.out.println("Skipping file (older than last processed time): " + item.objectName());
+                    log.debug("Skipping file (older than last processed time): {}", item.objectName());
                     skippedFiles++;
                     continue;
                 }
 
                 // Only process .jl files
                 if (item.objectName().endsWith(".jl")) {
-                    System.out.println("Processing .jl file: " + item.objectName());
+                    log.info("Processing .jl file: {}", item.objectName());
                     processJLFile(item.objectName(), lastProcessedTime);
                     processedFiles++;
                 } else {
-                    System.out.println("Skipping non-.jl file: " + item.objectName());
+                    log.debug("Skipping non-.jl file: {}", item.objectName());
                     skippedFiles++;
                 }
             }
             
-            System.out.println("Processing complete:");
-            System.out.println("  Total files found: " + totalFiles);
-            System.out.println("  Files processed: " + processedFiles);
-            System.out.println("  Files skipped: " + skippedFiles);
+            log.info("Processing complete - Total files: {}, Processed: {}, Skipped: {}", 
+                    totalFiles, processedFiles, skippedFiles);
             
         } catch (MinioException e) {
-            System.err.println("MinIO Error occurred: " + e.getMessage());
+            log.error("MinIO Error occurred: {}", e.getMessage(), e);
             throw e;
         } catch (Exception e) {
-            System.err.println("Unexpected error occurred: " + e.getMessage());
+            log.error("Unexpected error occurred: {}", e.getMessage(), e);
             throw e;
         }
     }
 
     private void processJLFile(String objectName, Date lastProcessedTime) throws Exception {
-        System.out.println("Reading file content from: " + objectName);
+        log.info("Reading file content from: {}", objectName);
         
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(
@@ -110,12 +112,12 @@ public class MinIOHelper {
                 // }
 
                 // Process your record here
-                System.out.println("Line " + lineCount + ": " + line);
+                log.debug("Line {}: {}", lineCount, line);
             }
             
-            System.out.println("Finished processing file: " + objectName + " (processed " + lineCount + " lines)");
+            log.info("Finished processing file: {} (processed {} lines)", objectName, lineCount);
         } catch (Exception e) {
-            System.err.println("Error processing file " + objectName + ": " + e.getMessage());
+            log.error("Error processing file {}: {}", objectName, e.getMessage(), e);
             throw e;
         }
     }
