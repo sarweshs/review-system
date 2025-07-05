@@ -126,6 +126,27 @@ public class S3StorageService implements StorageService {
         try {
             log.info("Listing S3 objects with metadata recursively in bucket: {} with prefix: {}", bucketName, prefix);
             
+            // Try listing without prefix first to see what's in the bucket
+            ListObjectsV2Request requestWithoutPrefix = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .build();
+            
+            ListObjectsV2Response responseWithoutPrefix = s3Client.listObjectsV2(requestWithoutPrefix);
+            log.info("Total objects found in bucket {} (no prefix): {}", bucketName, responseWithoutPrefix.contents().size());
+            
+            // Print first few objects to understand bucket structure
+            int count = 0;
+            for (S3Object obj : responseWithoutPrefix.contents()) {
+                if (count < 10) { // Only log first 10 objects
+                    log.info("Found object (no prefix): {} (size: {} bytes, modified: {})", 
+                            obj.key(), obj.size(), obj.lastModified());
+                    count++;
+                } else {
+                    break;
+                }
+            }
+            
+            // Now try with the actual prefix
             ListObjectsV2Request request = ListObjectsV2Request.builder()
                     .bucket(bucketName)
                     .prefix(prefix)
@@ -213,6 +234,23 @@ public class S3StorageService implements StorageService {
         } catch (SdkException e) {
             log.error("Error getting S3 file {} from bucket: {} - {}", key, bucketName, e.getMessage(), e);
             throw new RuntimeException("Failed to get S3 file", e);
+        }
+    }
+    
+    @Override
+    public String downloadFile(String key) {
+        try {
+            log.debug("Downloading S3 file: {} from bucket: {}", key, bucketName);
+            
+            byte[] fileBytes = getFile(key);
+            String content = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
+            
+            log.debug("Successfully downloaded S3 file: {} ({} characters)", key, content.length());
+            return content;
+            
+        } catch (Exception e) {
+            log.error("Error downloading S3 file {} from bucket: {} - {}", key, bucketName, e.getMessage(), e);
+            throw new RuntimeException("Failed to download S3 file: " + key, e);
         }
     }
     

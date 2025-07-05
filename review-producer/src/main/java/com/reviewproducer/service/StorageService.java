@@ -25,6 +25,11 @@ public interface StorageService {
     byte[] getFile(String key);
     
     /**
+     * Download file content as string
+     */
+    String downloadFile(String key);
+    
+    /**
      * Get file metadata
      */
     FileMetadata getFileMetadata(String key);

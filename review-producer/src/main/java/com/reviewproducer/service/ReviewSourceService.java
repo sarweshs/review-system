@@ -8,9 +8,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PostConstruct;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Service
@@ -18,9 +21,23 @@ public class ReviewSourceService {
     private final ReviewSourceRepository reviewSourceRepository;
     private final CredentialService credentialService;
     private final StorageServiceFactory storageServiceFactory;
+    
+    @Value("${review.producer.thread.pool.size:2}")
+    private int threadPoolSize;
+    
+    @Value("${review.producer.queue.capacity:100}")
+    private int queueCapacity;
+    
+    private BlockingQueue<FileProcessingTask> fileQueue;
+    private ExecutorService executorService;
+    private final AtomicInteger activeThreads = new AtomicInteger(0);
 
-    @Value("${review-source-job.enabled:true}")
-    private boolean jobEnabled;
+    @PostConstruct
+    public void initQueueAndExecutor() {
+        this.fileQueue = new LinkedBlockingQueue<>(queueCapacity);
+        this.executorService = Executors.newFixedThreadPool(threadPoolSize);
+        log.info("Initialized ReviewSourceService with {} threads and queue capacity {}", threadPoolSize, queueCapacity);
+    }
 
     public ReviewSourceService(ReviewSourceRepository reviewSourceRepository, 
                              CredentialService credentialService,
@@ -39,38 +56,23 @@ public class ReviewSourceService {
         }
     }
 
-    @Scheduled(fixedDelayString = "${review-source-job.fixed-delay-ms:60000}")
-    public void scheduledPrintActiveSources() {
-        if (!jobEnabled) {
-            log.debug("Review source job is disabled");
-            return;
-        }
-        
+    @Scheduled(fixedDelayString = "${review.producer.schedule.interval:300000}") // 5 minutes default
+    public void processReviewSources() {
         log.info("Starting scheduled review source processing job");
         
         try {
-            List<ReviewSource> sources = getActiveSources();
-            
-            if (sources.isEmpty()) {
-                log.info("No active review sources found");
-                return;
-            }
-            
-            log.info("Found {} active review sources", sources.size());
+            List<ReviewSource> activeSources = reviewSourceRepository.findAllActive();
+            log.info("Found {} active review sources", activeSources.size());
             
             int successCount = 0;
             int failureCount = 0;
             
-            for (ReviewSource source : sources) {
+            for (ReviewSource source : activeSources) {
                 try {
-                    boolean success = processReviewSource(source);
-                    if (success) {
-                        successCount++;
-                    } else {
-                        failureCount++;
-                    }
+                    processReviewSource(source);
+                    successCount++;
                 } catch (Exception e) {
-                    log.error("Unexpected error processing review source: {}", source.getName(), e);
+                    log.error("Failed to process review source: {} - {}", source.getName(), e.getMessage(), e);
                     failureCount++;
                 }
             }
@@ -78,129 +80,107 @@ public class ReviewSourceService {
             log.info("Review source processing completed. Success: {}, Failures: {}", successCount, failureCount);
             
         } catch (Exception e) {
-            log.error("Critical error in scheduled review source processing job", e);
+            log.error("Error in scheduled review source processing: {}", e.getMessage(), e);
         }
     }
-    
-    private boolean processReviewSource(ReviewSource source) {
+
+    private void processReviewSource(ReviewSource source) {
         log.info("Processing review source: {} (URI: {})", source.getName(), source.getUri());
         
+        Credential credentials = null;
         try {
-            // Validate URI format
-            if (source.getUri() == null || source.getUri().trim().isEmpty()) {
-                log.error("Invalid URI for source: {} - URI is null or empty", source.getName());
-                return false;
-            }
-            
-            // Decrypt credentials if present
-            Credential credential = null;
-            if (source.getCredentialJson() != null && !source.getCredentialJson().trim().isEmpty()) {
-                try {
-                    credential = credentialService.decryptCredential(source.getCredentialJson());
-                    log.info("Successfully decrypted credentials for source: {}", source.getName());
-                } catch (Exception e) {
-                    log.error("Failed to decrypt credentials for source: {} - {}", source.getName(), e.getMessage(), e);
-                    return false;
-                }
-            } else {
-                log.info("No credentials found for source: {} - proceeding with anonymous access", source.getName());
-            }
-            
+            credentials = credentialService.decryptCredential(source.getCredentialJson());
+        } catch (Exception e) {
+            log.error("Failed to decrypt credentials for source: {} - {}", source.getName(), e.getMessage(), e);
+            return;
+        }
+        if (credentials == null) {
+            log.error("Failed to decrypt credentials for source: {} (null returned)", source.getName());
+            return;
+        }
+        log.info("Successfully decrypted credentials for source: {}", source.getName());
+        
+        try {
             // Create storage service
-            StorageService storageService;
-            try {
-                storageService = storageServiceFactory.createStorageService(source.getUri(), credential);
-                if (storageService == null) {
-                    log.error("Failed to create storage service for source: {} - unsupported URI scheme or invalid configuration", source.getName());
-                    return false;
-                }
-            } catch (Exception e) {
-                log.error("Error creating storage service for source: {} - {}", source.getName(), e.getMessage(), e);
-                return false;
-            }
+            var storageService = storageServiceFactory.createStorageService(source.getUri(), credentials);
             
-            // Extract prefix from URI path
+            // Extract prefix from URI
             String prefix = extractPrefixFromUri(source.getUri());
-            if (prefix == null) {
-                log.error("Failed to extract prefix from URI for source: {}", source.getName());
-                return false;
-            }
-            
             log.info("Using prefix: {} for source: {}", prefix, source.getName());
             
-            // List files recursively with metadata for incremental processing
-            List<FileMetadata> filesWithMetadata = listFilesWithMetadataAndRetry(storageService, prefix, source.getName());
+            // List files with metadata
+            List<FileMetadata> allFiles = storageService.listReviewFilesWithMetadata(prefix);
+            log.info("Found {} .jl files with metadata in prefix: {}", allFiles.size(), prefix);
             
-            if (filesWithMetadata == null) {
-                // Error occurred during file listing
-                return false;
-            }
-            
-            if (filesWithMetadata.isEmpty()) {
+            if (allFiles.isEmpty()) {
                 log.info("No .jl files found for source: {}", source.getName());
-            } else {
-                log.info("Found {} .jl files for source: {}", filesWithMetadata.size(), source.getName());
-                
-                // Log file metadata for incremental processing
-                for (FileMetadata file : filesWithMetadata) {
-                    log.info("File: {} (size: {} bytes, modified: {}, created: {})", 
-                            file.getKey(), file.getSize(), file.getLastModified(), file.getCreated());
-                }
-                
-                // Check for files that need processing based on last processed timestamp
-                if (source.getLastProcessedTimestamp() != null) {
-                    Instant lastProcessed = source.getLastProcessedTimestamp()
-                            .atZone(java.time.ZoneId.systemDefault())
-                            .toInstant();
-                    List<FileMetadata> newFiles = filesWithMetadata.stream()
-                            .filter(file -> file.getLastModified().isAfter(lastProcessed))
-                            .toList();
-                    
-                    log.info("Found {} new/modified files since last processing for source: {}", 
-                            newFiles.size(), source.getName());
-                    
-                    for (FileMetadata file : newFiles) {
-                        log.info("New file to process: {} (modified: {})", file.getKey(), file.getLastModified());
+                return;
+            }
+            
+            // Filter files based on lastProcessedTimestamp
+            List<FileMetadata> filesToProcess = filterFilesByTimestamp(allFiles, 
+                source.getLastProcessedTimestamp() != null ? 
+                source.getLastProcessedTimestamp().atZone(java.time.ZoneId.systemDefault()).toInstant() : null);
+            log.info("Found {} files to process (after filtering by timestamp) for source: {}", 
+                    filesToProcess.size(), source.getName());
+            
+            if (filesToProcess.isEmpty()) {
+                log.info("No new files to process for source: {}", source.getName());
+                return;
+            }
+            
+            // Add files to processing queue
+            for (FileMetadata file : filesToProcess) {
+                FileProcessingTask task = new FileProcessingTask(source, file, storageService);
+                try {
+                    if (fileQueue.offer(task, 30, TimeUnit.SECONDS)) {
+                        log.debug("Added file to processing queue: {}", file.getName());
+                    } else {
+                        log.warn("Failed to add file to processing queue (timeout): {}", file.getName());
                     }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("Interrupted while adding file to queue: {}", file.getName());
+                    break;
                 }
             }
             
-            return true;
+            // Start processing threads if not already running
+            startProcessingThreads();
             
         } catch (Exception e) {
             log.error("Error processing review source: {} - {}", source.getName(), e.getMessage(), e);
-            return false;
         }
     }
     
-    private List<FileMetadata> listFilesWithMetadataAndRetry(StorageService storageService, String prefix, String sourceName) {
-        int maxRetries = 3;
-        int retryDelayMs = 1000;
+    private List<FileMetadata> filterFilesByTimestamp(List<FileMetadata> files, Instant lastProcessedTimestamp) {
+        if (lastProcessedTimestamp == null) {
+            log.info("No last processed timestamp found, processing all {} files", files.size());
+            return files;
+        }
         
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                return storageService.listReviewFilesWithMetadata(prefix);
-            } catch (Exception e) {
-                log.warn("Attempt {} failed to list files with metadata for source: {} - {}", attempt, sourceName, e.getMessage());
-                
-                if (attempt == maxRetries) {
-                    log.error("All {} attempts failed to list files with metadata for source: {} - {}", maxRetries, sourceName, e.getMessage(), e);
-                    return null;
-                }
-                
-                try {
-                    Thread.sleep(retryDelayMs * attempt); // Exponential backoff
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    log.error("Interrupted while waiting for retry for source: {}", sourceName);
-                    return null;
-                }
+        List<FileMetadata> filteredFiles = files.stream()
+                .filter(file -> file.getCreated().isAfter(lastProcessedTimestamp))
+                .toList();
+        
+        log.info("Filtered {} files created after {} (last processed timestamp)", 
+                filteredFiles.size(), lastProcessedTimestamp);
+        
+        return filteredFiles;
+    }
+    
+    private void startProcessingThreads() {
+        int currentActive = activeThreads.get();
+        if (currentActive < threadPoolSize) {
+            int threadsToStart = threadPoolSize - currentActive;
+            log.info("Starting {} processing threads (current active: {})", threadsToStart, currentActive);
+            
+            for (int i = 0; i < threadsToStart; i++) {
+                executorService.submit(new FileProcessor());
             }
         }
-        
-        return null;
     }
-    
+
     private String extractPrefixFromUri(String uri) {
         try {
             java.net.URI parsedUri = new java.net.URI(uri);
@@ -211,14 +191,89 @@ public class ReviewSourceService {
                 path = path.substring(1);
             }
             
-            // For now, let's search the entire bucket to see what's there
-            // We'll return empty string to search all objects in the bucket
-            log.info("Extracted bucket name from URI: {} -> {}", uri, path);
-            return ""; // Search entire bucket
-            
+            // Return empty string to search entire bucket
+            return "";
         } catch (Exception e) {
             log.error("Error extracting prefix from URI: {} - {}", uri, e.getMessage(), e);
             return null;
+        }
+    }
+    
+    // Inner class for file processing task
+    private static class FileProcessingTask {
+        private final ReviewSource source;
+        private final FileMetadata file;
+        private final StorageService storageService;
+        
+        public FileProcessingTask(ReviewSource source, FileMetadata file, StorageService storageService) {
+            this.source = source;
+            this.file = file;
+            this.storageService = storageService;
+        }
+        
+        public ReviewSource getSource() { return source; }
+        public FileMetadata getFile() { return file; }
+        public StorageService getStorageService() { return storageService; }
+    }
+    
+    // Inner class for file processor thread
+    private class FileProcessor implements Runnable {
+        @Override
+        public void run() {
+            activeThreads.incrementAndGet();
+            log.info("File processor thread started. Active threads: {}", activeThreads.get());
+            
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                        // Wait for task with timeout
+                        FileProcessingTask task = fileQueue.poll(60, TimeUnit.SECONDS);
+                        
+                        if (task == null) {
+                            log.debug("No tasks in queue, continuing to wait...");
+                            continue;
+                        }
+                        
+                        processFile(task);
+                        
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.info("File processor thread interrupted");
+                        break;
+                    } catch (Exception e) {
+                        log.error("Error in file processor thread: {}", e.getMessage(), e);
+                    }
+                }
+            } finally {
+                activeThreads.decrementAndGet();
+                log.info("File processor thread stopped. Active threads: {}", activeThreads.get());
+            }
+        }
+        
+        private void processFile(FileProcessingTask task) {
+            ReviewSource source = task.getSource();
+            FileMetadata file = task.getFile();
+            StorageService storageService = task.getStorageService();
+            
+            log.info("Processing file: {} from source: {}", file.getName(), source.getName());
+            
+            try {
+                // Download and process the file
+                String fileContent = storageService.downloadFile(file.getKey());
+                
+                // TODO: Parse JSONL content and send to Kafka
+                log.info("Successfully downloaded file: {} ({} bytes)", file.getName(), fileContent.length());
+                
+                // Update last processed timestamp
+                source.setLastProcessedTimestamp(file.getCreated().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
+                reviewSourceRepository.save(source);
+                log.info("Updated last processed timestamp for source: {} to {}", 
+                        source.getName(), file.getCreated());
+                
+            } catch (Exception e) {
+                log.error("Failed to process file: {} from source: {} - {}", 
+                        file.getName(), source.getName(), e.getMessage(), e);
+            }
         }
     }
 } 

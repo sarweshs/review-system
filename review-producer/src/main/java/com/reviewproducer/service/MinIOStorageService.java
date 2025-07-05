@@ -253,6 +253,23 @@ public class MinIOStorageService implements StorageService {
     }
     
     @Override
+    public String downloadFile(String key) {
+        try {
+            log.debug("Downloading MinIO file: {} from bucket: {}", key, bucketName);
+            
+            byte[] fileBytes = getFile(key);
+            String content = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
+            
+            log.debug("Successfully downloaded MinIO file: {} ({} characters)", key, content.length());
+            return content;
+            
+        } catch (Exception e) {
+            log.error("Error downloading MinIO file {} from bucket: {} - {}", key, bucketName, e.getMessage(), e);
+            throw new RuntimeException("Failed to download MinIO file: " + key, e);
+        }
+    }
+    
+    @Override
     public FileMetadata getFileMetadata(String key) {
         try {
             log.debug("Getting metadata for MinIO file: {} from bucket: {}", key, bucketName);

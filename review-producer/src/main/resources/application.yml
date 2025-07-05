@@ -85,9 +85,16 @@ management:
     health:
       show-details: always
 
-review-source-job:
-  enabled: true
-  fixed-delay-ms: 60000
+# Review Producer Configuration
+review:
+  producer:
+    thread:
+      pool:
+        size: 2  # Number of processing threads
+    queue:
+      capacity: 100  # Maximum number of files in processing queue
+    schedule:
+      interval: 300000  # 5 minutes in milliseconds
 
 # Vault Configuration
 vault:
