@@ -88,11 +88,7 @@
         <appender-ref ref="FileAppender"/>
     </logger>
 
-    <!-- Logger for Kafka operations -->
-    <logger name="com.reviewservice.kafka" level="DEBUG" additivity="false">
-        <appender-ref ref="Console"/>
-        <appender-ref ref="FileAppender"/>
-    </logger>
+
 
     <!-- Logger for credential services -->
     <logger name="com.reviewservice.service.CredentialService" level="DEBUG" additivity="false">

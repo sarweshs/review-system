@@ -16,11 +16,6 @@ public class TestConfig {
     public DataSource dataSource() {
         return new EmbeddedDatabaseBuilder()
                 .setType(EmbeddedDatabaseType.H2)
-                .addScript("classpath:db/migration/V1__create_reviews_table.sql")
-                .addScript("classpath:db/migration/V2__create_review_sources_table.sql")
-                .addScript("classpath:db/migration/V3__add_source_to_reviews.sql")
-                .addScript("classpath:db/migration/V4__add_credential_to_reviews.sql")
-                .addScript("classpath:db/migration/V5__remove_backend_from_review_sources.sql")
                 .build();
     }
 } 

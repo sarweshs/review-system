@@ -1,102 +1,102 @@
--- Table: providers
-CREATE TABLE providers (
-    provider_id INT PRIMARY KEY,
-    provider_name VARCHAR(100) NOT NULL
+
+-- Table: entities
+CREATE TABLE IF NOT EXISTS entities (
+    entity_id INT PRIMARY KEY,
+    entity_type VARCHAR NOT NULL, -- e.g., 'hotel', 'airline', 'hostel'
+    entity_name VARCHAR NOT NULL
 );
 
--- Table: hotels
-CREATE TABLE hotels (
-    hotel_id INT PRIMARY KEY,
-    platform VARCHAR(50) NOT NULL,
-    hotel_name VARCHAR(255) NOT NULL
-);
-
--- Table: hotel_reviews
-CREATE TABLE hotel_reviews (
-    hotel_review_id BIGINT PRIMARY KEY,
-    hotel_id INT NOT NULL,
-    provider_id INT NOT NULL,
-    rating FLOAT NOT NULL,
-    formatted_rating VARCHAR(10),
-    rating_text VARCHAR(50),
+-- Table: entity_reviews
+CREATE TABLE IF NOT EXISTS entity_reviews (
+    review_id BIGINT PRIMARY KEY,
+    entity_id INT NOT NULL,
+    platform VARCHAR,
+    provider_id INT,
+    rating DECIMAL(3,1),
+    rating_text VARCHAR,
     review_title TEXT,
     review_comments TEXT,
     review_positives TEXT,
     review_negatives TEXT,
-    review_date DATETIME,
-    check_in_month_year VARCHAR(20),
+    check_in_date VARCHAR,
+    review_date TIMESTAMP,
+    responder_name VARCHAR,
+    response_date VARCHAR,
+    response_text TEXT,
+    review_provider_text VARCHAR,
     review_provider_logo TEXT,
-    review_provider_text VARCHAR(100),
     encrypted_review_data TEXT,
-    is_show_review_response BOOLEAN,
-    response_date_text VARCHAR(50),
-    formatted_review_date VARCHAR(50),
-    responder_name VARCHAR(255),
-    translate_source VARCHAR(10),
-    translate_target VARCHAR(10),
     original_title TEXT,
     original_comment TEXT,
-    formatted_response_date VARCHAR(50),
-    FOREIGN KEY (hotel_id) REFERENCES hotels(hotel_id),
-    FOREIGN KEY (provider_id) REFERENCES providers(provider_id)
+    CONSTRAINT fk_entity FOREIGN KEY (entity_id) REFERENCES entities (entity_id) ON DELETE CASCADE
 );
 
--- Table: reviewers
-CREATE TABLE reviewers (
-    hotel_review_id BIGINT PRIMARY KEY,
+-- Table: reviewer_info
+CREATE TABLE IF NOT EXISTS reviewer_info (
+    review_id BIGINT PRIMARY KEY,
     country_id INT,
-    country_name VARCHAR(100),
-    flag_name VARCHAR(10),
-    display_member_name VARCHAR(100),
+    country_name VARCHAR,
+    flag_name VARCHAR,
     review_group_id INT,
-    review_group_name VARCHAR(100),
+    review_group_name VARCHAR,
     room_type_id INT,
-    room_type_name VARCHAR(100),
+    room_type_name VARCHAR,
     length_of_stay INT,
     reviewer_reviewed_count INT,
     is_expert_reviewer BOOLEAN,
     is_show_global_icon BOOLEAN,
     is_show_reviewed_count BOOLEAN,
-    FOREIGN KEY (hotel_review_id) REFERENCES hotel_reviews(hotel_review_id)
+    CONSTRAINT fk_review_info FOREIGN KEY (review_id) REFERENCES entity_reviews (review_id) ON DELETE CASCADE
 );
 
--- Table: overall_scores
-CREATE TABLE overall_scores (
-    hotel_id INT,
+-- Table: overall_provider_scores
+CREATE TABLE IF NOT EXISTS overall_provider_scores (
+    entity_id INT,
     provider_id INT,
-    overall_score FLOAT,
+    provider VARCHAR,
+    overall_score DECIMAL(3,1),
     review_count INT,
-    PRIMARY KEY (hotel_id, provider_id),
-    FOREIGN KEY (hotel_id) REFERENCES hotels(hotel_id),
-    FOREIGN KEY (provider_id) REFERENCES providers(provider_id)
+    cleanliness DECIMAL(3,1),
+    facilities DECIMAL(3,1),
+    location DECIMAL(3,1),
+    room_comfort_quality DECIMAL(3,1),
+    service DECIMAL(3,1),
+    value_for_money DECIMAL(3,1),
+    PRIMARY KEY (entity_id, provider_id),
+    CONSTRAINT fk_entity_score FOREIGN KEY (entity_id) REFERENCES entities (entity_id) ON DELETE CASCADE
 );
 
--- Table: overall_score_grades
-CREATE TABLE overall_score_grades (
-    hotel_id INT,
-    provider_id INT,
-    category VARCHAR(100),
-    score FLOAT,
-    PRIMARY KEY (hotel_id, provider_id, category),
-    FOREIGN KEY (hotel_id, provider_id) REFERENCES overall_scores(hotel_id, provider_id)
-);
-
--- Table: review_sources
-CREATE TABLE review_sources (
-    source_id SERIAL PRIMARY KEY,
-    source_name VARCHAR(255) NOT NULL,
-    file_path TEXT NOT NULL,
+-- Table: review_sources (for managing review data sources)
+CREATE TABLE IF NOT EXISTS review_sources (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    uri VARCHAR(255) NOT NULL,    -- e.g. s3://bucket/folder
+    credential_json TEXT,         -- encrypted credentials
     active BOOLEAN DEFAULT TRUE,
-    last_processed TIMESTAMP
+    last_processed_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NULL
 );
 
--- Table: review_translations
-CREATE TABLE review_translations (
-    review_translation_id SERIAL PRIMARY KEY,
-    hotel_review_id BIGINT NOT NULL,
-    language_code VARCHAR(10) NOT NULL,
-    translated_title TEXT,
-    translated_comment TEXT,
-    translated_response TEXT,
-    FOREIGN KEY (hotel_review_id) REFERENCES hotel_reviews(hotel_review_id)
+-- Table: bad_review_records (for storing invalid review records)
+CREATE TABLE IF NOT EXISTS bad_review_records (
+    id BIGSERIAL PRIMARY KEY,
+    json_data JSONB NOT NULL,
+    platform VARCHAR(100) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_bad_review_records_platform ON bad_review_records(platform);
+CREATE INDEX IF NOT EXISTS idx_bad_review_records_created_at ON bad_review_records(created_at);
+CREATE INDEX IF NOT EXISTS idx_bad_review_records_reason ON bad_review_records(reason);
+
+-- Create GIN index for JSONB queries
+CREATE INDEX IF NOT EXISTS idx_bad_review_records_json_data ON bad_review_records USING GIN (json_data);
+
+-- Add comments for documentation
+COMMENT ON TABLE bad_review_records IS 'Stores invalid review records that failed validation during processing';
+COMMENT ON COLUMN bad_review_records.id IS 'Primary key';
+COMMENT ON COLUMN bad_review_records.json_data IS 'The original JSON data that failed validation';
+COMMENT ON COLUMN bad_review_records.platform IS 'The platform/source where the review came from';
+COMMENT ON COLUMN bad_review_records.reason IS 'The reason why the review was considered invalid';
+COMMENT ON COLUMN bad_review_records.created_at IS 'Timestamp when the bad record was created';
