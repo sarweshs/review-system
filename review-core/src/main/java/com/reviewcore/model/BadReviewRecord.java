@@ -31,7 +31,7 @@ public class BadReviewRecord {
     
     // Default constructor
     public BadReviewRecord() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(java.time.ZoneOffset.UTC);
     }
     
     // Constructor with parameters

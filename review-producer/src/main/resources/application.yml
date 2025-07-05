@@ -1,5 +1,7 @@
 # Review Producer Application Configuration
 
+# JVM timezone configuration for UTC
+# Note: This should also be set via -Duser.timezone=UTC when starting the application
 server:
   port: 7072
 
@@ -20,6 +22,9 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+    timezone: UTC
   
   redis:
     host: localhost
@@ -46,7 +51,7 @@ spring:
 kafka:
   topic:
     reviews: reviews
-    bad-reviews: bad-reviews
+    bad-reviews: bad_review_records
 
 # Enhanced Logging configuration
 logging:

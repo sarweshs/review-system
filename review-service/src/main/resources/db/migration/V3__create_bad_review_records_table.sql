@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS bad_review_records (
     json_data JSONB NOT NULL,
     platform VARCHAR(100) NOT NULL,
     reason VARCHAR(500) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for better query performance

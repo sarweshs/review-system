@@ -1,6 +1,7 @@
 package com.reviewproducer.controller;
 
 import com.reviewproducer.service.ReviewKafkaProducerService;
+import com.reviewproducer.service.MetricsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 public class ReviewProducerController {
     
     private final ReviewKafkaProducerService kafkaProducerService;
+    private final MetricsService metricsService;
     
     /**
      * Send a review to Kafka with validation
@@ -22,7 +24,7 @@ public class ReviewProducerController {
         log.info("Received review for platform: {}", request.getPlatform());
         
         try {
-            kafkaProducerService.sendReviewWithValidation(request.getReviewJson(), request.getPlatform());
+            kafkaProducerService.processReviewLine(request.getReviewJson());
             return ResponseEntity.ok("Review processed successfully");
         } catch (Exception e) {
             log.error("Failed to process review: {}", e.getMessage(), e);
@@ -59,6 +61,22 @@ public class ReviewProducerController {
         } catch (Exception e) {
             log.error("Failed to send bad review: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body("Failed to send bad review: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Get processing metrics
+     */
+    @GetMapping("/metrics")
+    public ResponseEntity<MetricsService.MetricsSummary> getMetrics() {
+        log.info("Retrieving processing metrics");
+        
+        try {
+            MetricsService.MetricsSummary metrics = metricsService.getMetricsSummary();
+            return ResponseEntity.ok(metrics);
+        } catch (Exception e) {
+            log.error("Failed to retrieve metrics: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
         }
     }
     

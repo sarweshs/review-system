@@ -21,6 +21,8 @@ public class ReviewSourceService {
     private final ReviewSourceRepository reviewSourceRepository;
     private final CredentialService credentialService;
     private final StorageServiceFactory storageServiceFactory;
+    private final ReviewKafkaProducerService kafkaProducerService;
+    private final MetricsService metricsService;
     
     @Value("${review.producer.thread.pool.size:2}")
     private int threadPoolSize;
@@ -41,10 +43,14 @@ public class ReviewSourceService {
 
     public ReviewSourceService(ReviewSourceRepository reviewSourceRepository, 
                              CredentialService credentialService,
-                             StorageServiceFactory storageServiceFactory) {
+                             StorageServiceFactory storageServiceFactory,
+                             ReviewKafkaProducerService kafkaProducerService,
+                             MetricsService metricsService) {
         this.reviewSourceRepository = reviewSourceRepository;
         this.credentialService = credentialService;
         this.storageServiceFactory = storageServiceFactory;
+        this.kafkaProducerService = kafkaProducerService;
+        this.metricsService = metricsService;
     }
 
     public List<ReviewSource> getActiveSources() {
@@ -60,43 +66,61 @@ public class ReviewSourceService {
     public void processReviewSources() {
         log.info("Starting scheduled review source processing job");
         
+        long jobStartTime = System.currentTimeMillis();
+        int totalSources = 0;
+        int successCount = 0;
+        int failureCount = 0;
+        int totalFilesFound = 0;
+        int totalFilesToProcess = 0;
+        int totalFilesQueued = 0;
+        
         try {
             List<ReviewSource> activeSources = reviewSourceRepository.findAllActive();
-            log.info("Found {} active review sources", activeSources.size());
-            
-            int successCount = 0;
-            int failureCount = 0;
+            totalSources = activeSources.size();
+            log.info("Found {} active review sources", totalSources);
             
             for (ReviewSource source : activeSources) {
                 try {
-                    processReviewSource(source);
+                    ProcessingMetrics metrics = processReviewSource(source);
                     successCount++;
+                    totalFilesFound += metrics.getTotalFilesFound();
+                    totalFilesToProcess += metrics.getFilesToProcess();
+                    totalFilesQueued += metrics.getFilesQueued();
                 } catch (Exception e) {
                     log.error("Failed to process review source: {} - {}", source.getName(), e.getMessage(), e);
                     failureCount++;
                 }
             }
             
-            log.info("Review source processing completed. Success: {}, Failures: {}", successCount, failureCount);
+            long jobDuration = System.currentTimeMillis() - jobStartTime;
+            log.info("Review source processing completed in {} ms - Sources: {}/{}, Files Found: {}, Files to Process: {}, Files Queued: {}", 
+                    jobDuration, successCount, totalSources, totalFilesFound, totalFilesToProcess, totalFilesQueued);
+            
+            // Record job execution metrics
+            metricsService.recordJobExecution(totalSources, successCount, failureCount, 
+                                            totalFilesFound, totalFilesToProcess, totalFilesQueued, jobDuration);
             
         } catch (Exception e) {
             log.error("Error in scheduled review source processing: {}", e.getMessage(), e);
         }
     }
 
-    private void processReviewSource(ReviewSource source) {
+    private ProcessingMetrics processReviewSource(ReviewSource source) {
         log.info("Processing review source: {} (URI: {})", source.getName(), source.getUri());
+        
+        long sourceStartTime = System.currentTimeMillis();
+        ProcessingMetrics metrics = new ProcessingMetrics();
         
         Credential credentials = null;
         try {
             credentials = credentialService.decryptCredential(source.getCredentialJson());
         } catch (Exception e) {
             log.error("Failed to decrypt credentials for source: {} - {}", source.getName(), e.getMessage(), e);
-            return;
+            return metrics;
         }
         if (credentials == null) {
             log.error("Failed to decrypt credentials for source: {} (null returned)", source.getName());
-            return;
+            return metrics;
         }
         log.info("Successfully decrypted credentials for source: {}", source.getName());
         
@@ -110,31 +134,43 @@ public class ReviewSourceService {
             
             // List files with metadata
             List<FileMetadata> allFiles = storageService.listReviewFilesWithMetadata(prefix);
-            log.info("Found {} .jl files with metadata in prefix: {}", allFiles.size(), prefix);
+            metrics.setTotalFilesFound(allFiles.size());
+            log.info("Found {} total .jl files with metadata in prefix: {} for source: {}", 
+                    allFiles.size(), prefix, source.getName());
             
             if (allFiles.isEmpty()) {
                 log.info("No .jl files found for source: {}", source.getName());
-                return;
+                return metrics;
             }
+            
+            // Log file details for metrics
+            logFileMetrics(allFiles, source.getName(), "ALL_FILES");
             
             // Filter files based on lastProcessedTimestamp
             List<FileMetadata> filesToProcess = filterFilesByTimestamp(allFiles, 
                 source.getLastProcessedTimestamp() != null ? 
-                source.getLastProcessedTimestamp().atZone(java.time.ZoneId.systemDefault()).toInstant() : null);
-            log.info("Found {} files to process (after filtering by timestamp) for source: {}", 
-                    filesToProcess.size(), source.getName());
+                source.getLastProcessedTimestamp().atZone(java.time.ZoneOffset.UTC).toInstant() : null);
+            
+            metrics.setFilesToProcess(filesToProcess.size());
+            log.info("Found {} files to process (after filtering by timestamp) for source: {} out of {} total files", 
+                    filesToProcess.size(), source.getName(), allFiles.size());
+            
+            // Log filtered file details for metrics
+            logFileMetrics(filesToProcess, source.getName(), "FILES_TO_PROCESS");
             
             if (filesToProcess.isEmpty()) {
                 log.info("No new files to process for source: {}", source.getName());
-                return;
+                return metrics;
             }
             
             // Add files to processing queue
+            int queuedFiles = 0;
             for (FileMetadata file : filesToProcess) {
                 FileProcessingTask task = new FileProcessingTask(source, file, storageService);
                 try {
                     if (fileQueue.offer(task, 30, TimeUnit.SECONDS)) {
                         log.debug("Added file to processing queue: {}", file.getName());
+                        queuedFiles++;
                     } else {
                         log.warn("Failed to add file to processing queue (timeout): {}", file.getName());
                     }
@@ -145,12 +181,23 @@ public class ReviewSourceService {
                 }
             }
             
+            metrics.setFilesQueued(queuedFiles);
+            log.info("Successfully queued {} out of {} files for processing for source: {}", 
+                    queuedFiles, filesToProcess.size(), source.getName());
+            
             // Start processing threads if not already running
             startProcessingThreads();
             
         } catch (Exception e) {
             log.error("Error processing review source: {} - {}", source.getName(), e.getMessage(), e);
         }
+        
+        // Record source processing metrics
+        long sourceDuration = System.currentTimeMillis() - sourceStartTime;
+        metricsService.recordSourceProcessing(source.getName(), metrics.getTotalFilesFound(), 
+                                            metrics.getFilesToProcess(), metrics.getFilesQueued(), sourceDuration);
+        
+        return metrics;
     }
     
     private List<FileMetadata> filterFilesByTimestamp(List<FileMetadata> files, Instant lastProcessedTimestamp) {
@@ -163,7 +210,7 @@ public class ReviewSourceService {
                 .filter(file -> file.getCreated().isAfter(lastProcessedTimestamp))
                 .toList();
         
-        log.info("Filtered {} files created after {} (last processed timestamp)", 
+        log.info("Filtered {} files created after {} UTC (last processed timestamp)", 
                 filteredFiles.size(), lastProcessedTimestamp);
         
         return filteredFiles;
@@ -179,6 +226,13 @@ public class ReviewSourceService {
                 executorService.submit(new FileProcessor());
             }
         }
+        
+        // Log queue and thread metrics
+        log.info("Processing metrics - Active threads: {}/{}, Queue depth: {}/{}", 
+                activeThreads.get(), threadPoolSize, fileQueue.size(), queueCapacity);
+        
+        // Record queue and thread metrics
+        metricsService.recordQueueMetrics(activeThreads.get(), threadPoolSize, fileQueue.size(), queueCapacity);
     }
 
     private String extractPrefixFromUri(String uri) {
@@ -260,14 +314,15 @@ public class ReviewSourceService {
             try {
                 // Download and process the file
                 String fileContent = storageService.downloadFile(file.getKey());
-                
-                // TODO: Parse JSONL content and send to Kafka
                 log.info("Successfully downloaded file: {} ({} bytes)", file.getName(), fileContent.length());
                 
+                // Process each line in the JSONL file
+                processJsonlContent(fileContent, source.getName());
+                
                 // Update last processed timestamp
-                source.setLastProcessedTimestamp(file.getCreated().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
+                source.setLastProcessedTimestamp(file.getCreated().atZone(java.time.ZoneOffset.UTC).toLocalDateTime());
                 reviewSourceRepository.save(source);
-                log.info("Updated last processed timestamp for source: {} to {}", 
+                log.info("Updated last processed timestamp for source: {} to {} UTC", 
                         source.getName(), file.getCreated());
                 
             } catch (Exception e) {
@@ -275,5 +330,102 @@ public class ReviewSourceService {
                         file.getName(), source.getName(), e.getMessage(), e);
             }
         }
+        
+        /**
+         * Process JSONL content line by line
+         */
+        private void processJsonlContent(String fileContent, String sourceName) {
+            String[] lines = fileContent.split("\n");
+            int totalLines = lines.length;
+            int processedLines = 0;
+            int validLines = 0;
+            int invalidLines = 0;
+            int emptyLines = 0;
+            long processingStartTime = System.currentTimeMillis();
+            
+            log.info("Processing {} lines from file in source: {}", totalLines, sourceName);
+            
+            for (String line : lines) {
+                line = line.trim();
+                if (line.isEmpty()) {
+                    emptyLines++;
+                    continue;
+                }
+                
+                try {
+                    // Process each review line with validation
+                    kafkaProducerService.processReviewLine(line);
+                    processedLines++;
+                    validLines++; // We'll count valid ones, invalid ones are logged separately
+                    
+                } catch (Exception e) {
+                    log.error("Failed to process line in file from source {}: {}", sourceName, e.getMessage());
+                    invalidLines++;
+                }
+            }
+            
+            long processingDuration = System.currentTimeMillis() - processingStartTime;
+            log.info("File processing completed for source: {} - Total: {}, Processed: {}, Valid: {}, Invalid: {}, Empty: {}, Duration: {} ms", 
+                    sourceName, totalLines, processedLines, validLines, invalidLines, emptyLines, processingDuration);
+            
+            // Record file processing metrics
+            metricsService.recordFileProcessing(sourceName, "unknown", totalLines, validLines, invalidLines, emptyLines, processingDuration);
+        }
+    }
+    
+    /**
+     * Log detailed file metrics for monitoring and future metric collection
+     */
+    private void logFileMetrics(List<FileMetadata> files, String sourceName, String metricType) {
+        if (files.isEmpty()) {
+            log.info("File metrics for {} - {}: 0 files", sourceName, metricType);
+            return;
+        }
+        
+        // Calculate metrics
+        long totalSize = files.stream().mapToLong(FileMetadata::getSize).sum();
+        Instant oldestFile = files.stream().map(FileMetadata::getCreated).min(Instant::compareTo).orElse(null);
+        Instant newestFile = files.stream().map(FileMetadata::getCreated).max(Instant::compareTo).orElse(null);
+        
+        // Log comprehensive metrics
+        log.info("File metrics for {} - {}: {} files, total size: {} bytes, size range: {} - {} bytes, " +
+                "date range: {} - {}", 
+                sourceName, metricType, files.size(), totalSize,
+                files.stream().mapToLong(FileMetadata::getSize).min().orElse(0),
+                files.stream().mapToLong(FileMetadata::getSize).max().orElse(0),
+                oldestFile != null ? oldestFile.toString() : "N/A",
+                newestFile != null ? newestFile.toString() : "N/A");
+        
+        // Log individual file details at DEBUG level
+        if (log.isDebugEnabled()) {
+            files.forEach(file -> log.debug("File: {}, Size: {} bytes, Created: {}, Key: {}", 
+                    file.getName(), file.getSize(), file.getCreated(), file.getKey()));
+        }
+        
+        // TODO: Send metrics to monitoring system (Prometheus, etc.)
+        // This is where you would add metric collection for:
+        // - Total files found per source
+        // - Files to be processed per source
+        // - File size distribution
+        // - Processing queue depth
+        // - Processing success/failure rates
+    }
+    
+    /**
+     * Metrics class for tracking processing statistics
+     */
+    private static class ProcessingMetrics {
+        private int totalFilesFound = 0;
+        private int filesToProcess = 0;
+        private int filesQueued = 0;
+        
+        public int getTotalFilesFound() { return totalFilesFound; }
+        public void setTotalFilesFound(int totalFilesFound) { this.totalFilesFound = totalFilesFound; }
+        
+        public int getFilesToProcess() { return filesToProcess; }
+        public void setFilesToProcess(int filesToProcess) { this.filesToProcess = filesToProcess; }
+        
+        public int getFilesQueued() { return filesQueued; }
+        public void setFilesQueued(int filesQueued) { this.filesQueued = filesQueued; }
     }
 } 

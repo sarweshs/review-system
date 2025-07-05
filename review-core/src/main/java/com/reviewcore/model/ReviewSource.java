@@ -38,6 +38,6 @@ public class ReviewSource {
     public String getLocation() { return uri; }
     public void setLastProcessed(java.time.Instant instant) { 
         this.lastProcessedTimestamp = instant != null ? 
-            instant.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null; 
+            instant.atZone(java.time.ZoneOffset.UTC).toLocalDateTime() : null; 
     }
 } 

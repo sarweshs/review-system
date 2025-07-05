@@ -14,11 +14,12 @@ public class ReviewKafkaProducerService {
     
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final ReviewValidationService validationService;
     
     @Value("${kafka.topic.reviews:reviews}")
     private String reviewsTopic;
     
-    @Value("${kafka.topic.bad-reviews:bad-reviews}")
+    @Value("${kafka.topic.bad-reviews:bad_review_records}")
     private String badReviewsTopic;
     
     /**
@@ -48,33 +49,42 @@ public class ReviewKafkaProducerService {
     }
     
     /**
-     * Send a review with validation - if valid, send to reviews topic; if invalid, send to bad-reviews topic
+     * Process a single review line with validation
      */
-    public void sendReviewWithValidation(String reviewJson, String platform) {
+    public void processReviewLine(String reviewJson) {
         try {
-            // Validate JSON format
-            objectMapper.readTree(reviewJson);
+            // Validate the review
+            ReviewValidationService.ValidationResult validationResult = validationService.validateReview(reviewJson);
             
-            // If validation passes, send to valid reviews topic
-            sendValidReview(reviewJson);
-            log.info("Valid review sent to Kafka for platform: {}", platform);
+            if (validationResult.isValid()) {
+                // Send valid review to Kafka
+                sendValidReview(reviewJson);
+                log.debug("Valid review sent to Kafka");
+            } else {
+                // Extract platform for bad record
+                String platform = validationService.extractPlatform(reviewJson);
+                
+                // Create and send bad review record
+                String badReviewRecord = createBadReviewRecord(reviewJson, platform, validationResult.getReason());
+                sendBadReview(badReviewRecord);
+                
+                // Log the bad record as requested
+                log.warn("Bad review record detected - Platform: {}, Reason: {}, Record: {}", 
+                        platform, validationResult.getReason(), reviewJson);
+            }
             
         } catch (Exception e) {
-            log.warn("Invalid review detected for platform: {}, reason: {}", platform, e.getMessage());
+            log.error("Failed to process review line: {}", e.getMessage(), e);
             
-            // Create bad review record and send to bad reviews topic
-            try {
-                String badReviewRecord = createBadReviewRecord(reviewJson, platform, e.getMessage());
-                sendBadReview(badReviewRecord);
-                log.info("Bad review record sent to Kafka for platform: {}", platform);
-            } catch (Exception badReviewException) {
-                log.error("Failed to send bad review record to Kafka: {}", badReviewException.getMessage(), badReviewException);
-            }
+            // Create bad record for processing error
+            String platform = validationService.extractPlatform(reviewJson);
+            String badReviewRecord = createBadReviewRecord(reviewJson, platform, "PROCESSING_ERROR: " + e.getMessage());
+            sendBadReview(badReviewRecord);
         }
     }
     
     /**
-     * Create a bad review record JSON
+     * Create a bad review record JSON in the specified format
      */
     private String createBadReviewRecord(String originalJson, String platform, String reason) {
         try {
@@ -87,25 +97,22 @@ public class ReviewKafkaProducerService {
     }
     
     /**
-     * Bad review record DTO for internal use
+     * Bad review record DTO matching the database schema
      */
     private static class BadReviewRecord {
         private final String jsonData;
         private final String platform;
         private final String reason;
-        private final String createdAt;
         
         public BadReviewRecord(String jsonData, String platform, String reason) {
             this.jsonData = jsonData;
             this.platform = platform;
             this.reason = reason;
-            this.createdAt = java.time.LocalDateTime.now().toString();
         }
         
         // Getters
         public String getJsonData() { return jsonData; }
         public String getPlatform() { return platform; }
         public String getReason() { return reason; }
-        public String getCreatedAt() { return createdAt; }
     }
 } 

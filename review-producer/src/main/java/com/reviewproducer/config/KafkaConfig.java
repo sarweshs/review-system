@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.config.TopicBuilder;
+import org.springframework.kafka.core.KafkaAdmin;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,6 +19,12 @@ public class KafkaConfig {
     
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
+    
+    @Value("${kafka.topic.reviews:reviews}")
+    private String reviewsTopic;
+    
+    @Value("${kafka.topic.bad-reviews:bad_review_records}")
+    private String badReviewsTopic;
     
     @Bean
     public ProducerFactory<String, String> producerFactory() {
@@ -35,5 +43,26 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, String> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
+    }
+    
+    @Bean
+    public KafkaAdmin kafkaAdmin() {
+        return new KafkaAdmin(Map.of("bootstrap.servers", bootstrapServers));
+    }
+    
+    @Bean
+    public org.apache.kafka.clients.admin.NewTopic reviewsTopic() {
+        return TopicBuilder.name(reviewsTopic)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+    
+    @Bean
+    public org.apache.kafka.clients.admin.NewTopic badReviewsTopic() {
+        return TopicBuilder.name(badReviewsTopic)
+                .partitions(3)
+                .replicas(1)
+                .build();
     }
 } 
