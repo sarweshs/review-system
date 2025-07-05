@@ -2,12 +2,14 @@ package com.reviewproducer.service;
 
 import com.reviewcore.model.ReviewSource;
 import com.reviewcore.model.Credential;
+import com.reviewproducer.model.FileMetadata;
 import com.reviewproducer.repository.ReviewSourceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -126,22 +128,40 @@ public class ReviewSourceService {
             
             log.info("Using prefix: {} for source: {}", prefix, source.getName());
             
-            // List files with timeout and retry logic
-            List<String> files = listFilesWithRetry(storageService, prefix, source.getName());
+            // List files recursively with metadata for incremental processing
+            List<FileMetadata> filesWithMetadata = listFilesWithMetadataAndRetry(storageService, prefix, source.getName());
             
-            if (files == null) {
+            if (filesWithMetadata == null) {
                 // Error occurred during file listing
                 return false;
             }
             
-            if (files.isEmpty()) {
+            if (filesWithMetadata.isEmpty()) {
                 log.info("No .jl files found for source: {}", source.getName());
             } else {
-                log.info("Found {} .jl files for source: {}", files.size(), source.getName());
+                log.info("Found {} .jl files for source: {}", filesWithMetadata.size(), source.getName());
                 
-                // Log file names at DEBUG level
-                for (String file : files) {
-                    log.debug("File to process: {}", file);
+                // Log file metadata for incremental processing
+                for (FileMetadata file : filesWithMetadata) {
+                    log.info("File: {} (size: {} bytes, modified: {}, created: {})", 
+                            file.getKey(), file.getSize(), file.getLastModified(), file.getCreated());
+                }
+                
+                // Check for files that need processing based on last processed timestamp
+                if (source.getLastProcessedTimestamp() != null) {
+                    Instant lastProcessed = source.getLastProcessedTimestamp()
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toInstant();
+                    List<FileMetadata> newFiles = filesWithMetadata.stream()
+                            .filter(file -> file.getLastModified().isAfter(lastProcessed))
+                            .toList();
+                    
+                    log.info("Found {} new/modified files since last processing for source: {}", 
+                            newFiles.size(), source.getName());
+                    
+                    for (FileMetadata file : newFiles) {
+                        log.info("New file to process: {} (modified: {})", file.getKey(), file.getLastModified());
+                    }
                 }
             }
             
@@ -153,18 +173,18 @@ public class ReviewSourceService {
         }
     }
     
-    private List<String> listFilesWithRetry(StorageService storageService, String prefix, String sourceName) {
+    private List<FileMetadata> listFilesWithMetadataAndRetry(StorageService storageService, String prefix, String sourceName) {
         int maxRetries = 3;
         int retryDelayMs = 1000;
         
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return storageService.listReviewFiles(prefix);
+                return storageService.listReviewFilesWithMetadata(prefix);
             } catch (Exception e) {
-                log.warn("Attempt {} failed to list files for source: {} - {}", attempt, sourceName, e.getMessage());
+                log.warn("Attempt {} failed to list files with metadata for source: {} - {}", attempt, sourceName, e.getMessage());
                 
                 if (attempt == maxRetries) {
-                    log.error("All {} attempts failed to list files for source: {} - {}", maxRetries, sourceName, e.getMessage(), e);
+                    log.error("All {} attempts failed to list files with metadata for source: {} - {}", maxRetries, sourceName, e.getMessage(), e);
                     return null;
                 }
                 
@@ -186,17 +206,16 @@ public class ReviewSourceService {
             java.net.URI parsedUri = new java.net.URI(uri);
             String path = parsedUri.getPath();
             
-            // Remove leading slash and return as prefix
+            // Remove leading slash
             if (path.startsWith("/")) {
                 path = path.substring(1);
             }
             
-            // If path ends with slash, keep it as prefix
-            if (!path.endsWith("/")) {
-                path += "/";
-            }
+            // For now, let's search the entire bucket to see what's there
+            // We'll return empty string to search all objects in the bucket
+            log.info("Extracted bucket name from URI: {} -> {}", uri, path);
+            return ""; // Search entire bucket
             
-            return path;
         } catch (Exception e) {
             log.error("Error extracting prefix from URI: {} - {}", uri, e.getMessage(), e);
             return null;

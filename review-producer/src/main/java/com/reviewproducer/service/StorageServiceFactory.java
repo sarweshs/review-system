@@ -25,126 +25,68 @@ public class StorageServiceFactory {
         try {
             URI parsedUri = new URI(uri);
             String scheme = parsedUri.getScheme();
-            String host = parsedUri.getHost();
-            int port = parsedUri.getPort();
-            String path = parsedUri.getPath();
+            String endpoint = scheme + "://" + parsedUri.getHost();
+            if (parsedUri.getPort() != -1) {
+                endpoint += ":" + parsedUri.getPort();
+            }
+            String bucket = parsedUri.getPath().substring(1); // Remove leading slash
             
-            // Validate URI components
-            if (scheme == null || scheme.trim().isEmpty()) {
-                log.error("Cannot create storage service: URI scheme is missing - {}", uri);
+            log.info("Creating storage service for scheme: {}, endpoint: {}, bucket: {}", scheme, endpoint, bucket);
+            
+            if ("https".equals(scheme) || "s3".equals(scheme)) {
+                return createS3StorageService(endpoint, bucket, credential);
+            } else if ("http".equals(scheme) || "minio".equals(scheme)) {
+                return createMinIOStorageService(endpoint, bucket, credential);
+            } else {
+                log.error("Unsupported storage scheme: {}", scheme);
                 return null;
-            }
-            
-            if (host == null || host.trim().isEmpty()) {
-                log.error("Cannot create storage service: URI host is missing - {}", uri);
-                return null;
-            }
-            
-            if (path == null || path.trim().isEmpty()) {
-                log.error("Cannot create storage service: URI path is missing - {}", uri);
-                return null;
-            }
-            
-            // Extract bucket name from path (remove leading slash)
-            String bucketName = path.startsWith("/") ? path.substring(1) : path;
-            if (bucketName.endsWith("/")) {
-                bucketName = bucketName.substring(0, bucketName.length() - 1);
-            }
-            
-            if (bucketName.trim().isEmpty()) {
-                log.error("Cannot create storage service: bucket name is empty - {}", uri);
-                return null;
-            }
-            
-            // Build endpoint URL
-            String endpoint = scheme + "://" + host;
-            if (port > 0) {
-                endpoint += ":" + port;
-            }
-            
-            log.info("Creating storage service for scheme: {}, endpoint: {}, bucket: {}", scheme, endpoint, bucketName);
-            
-            switch (scheme.toLowerCase()) {
-                case "s3":
-                case "https":
-                    // Handle S3/Storj
-                    if (credential == null) {
-                        log.error("AWS credentials required for S3/Storj access but none provided");
-                        return null;
-                    }
-                    
-                    if (!(credential instanceof AwsCredential)) {
-                        log.error("Invalid credential type for S3/Storj access. Expected AwsCredential, got: {}", 
-                                credential.getClass().getSimpleName());
-                        return null;
-                    }
-                    
-                    AwsCredential awsCredential = (AwsCredential) credential;
-                    if (awsCredential.getAccessKeyId() == null || awsCredential.getAccessKeyId().trim().isEmpty()) {
-                        log.error("AWS access key ID is missing or empty");
-                        return null;
-                    }
-                    
-                    if (awsCredential.getSecretAccessKey() == null || awsCredential.getSecretAccessKey().trim().isEmpty()) {
-                        log.error("AWS secret access key is missing or empty");
-                        return null;
-                    }
-                    
-                    try {
-                        S3StorageService s3Service = new S3StorageService();
-                        s3Service.initialize(awsCredential, endpoint, bucketName);
-                        return s3Service;
-                    } catch (Exception e) {
-                        log.error("Failed to initialize S3 storage service for endpoint: {} and bucket: {} - {}", 
-                                endpoint, bucketName, e.getMessage(), e);
-                        return null;
-                    }
-                    
-                case "minio":
-                case "http":
-                    // Handle MinIO
-                    if (credential == null) {
-                        log.error("Basic credentials required for MinIO access but none provided");
-                        return null;
-                    }
-                    
-                    if (!(credential instanceof BasicCredential)) {
-                        log.error("Invalid credential type for MinIO access. Expected BasicCredential, got: {}", 
-                                credential.getClass().getSimpleName());
-                        return null;
-                    }
-                    
-                    BasicCredential basicCredential = (BasicCredential) credential;
-                    if (basicCredential.getUsername() == null || basicCredential.getUsername().trim().isEmpty()) {
-                        log.error("MinIO username is missing or empty");
-                        return null;
-                    }
-                    
-                    if (basicCredential.getPassword() == null || basicCredential.getPassword().trim().isEmpty()) {
-                        log.error("MinIO password is missing or empty");
-                        return null;
-                    }
-                    
-                    try {
-                        MinIOStorageService minioService = new MinIOStorageService();
-                        minioService.initialize(basicCredential, endpoint, bucketName);
-                        return minioService;
-                    } catch (Exception e) {
-                        log.error("Failed to initialize MinIO storage service for endpoint: {} and bucket: {} - {}", 
-                                endpoint, bucketName, e.getMessage(), e);
-                        return null;
-                    }
-                    
-                default:
-                    log.error("Unsupported storage scheme: {} for URI: {}", scheme, uri);
-                    return null;
             }
             
         } catch (URISyntaxException e) {
             log.error("Invalid URI format: {} - {}", uri, e.getMessage(), e);
             return null;
         } catch (Exception e) {
-            log.error("Unexpected error creating storage service for URI: {} - {}", uri, e.getMessage(), e);
+            log.error("Error creating storage service for URI: {} - {}", uri, e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    private StorageService createS3StorageService(String endpoint, String bucket, Credential credential) {
+        if (!(credential instanceof AwsCredential)) {
+            log.error("Invalid credential type for S3 storage. Expected AwsCredential, got: {}", 
+                    credential != null ? credential.getClass().getSimpleName() : "null");
+            return null;
+        }
+        
+        try {
+            AwsCredential awsCredential = (AwsCredential) credential;
+            S3StorageService s3Service = new S3StorageService();
+            s3Service.initialize(endpoint, bucket, awsCredential);
+            return s3Service;
+            
+        } catch (Exception e) {
+            log.error("Failed to create S3 storage service for endpoint: {} and bucket: {} - {}", 
+                    endpoint, bucket, e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    private StorageService createMinIOStorageService(String endpoint, String bucket, Credential credential) {
+        if (!(credential instanceof BasicCredential)) {
+            log.error("Invalid credential type for MinIO storage. Expected BasicCredential, got: {}", 
+                    credential != null ? credential.getClass().getSimpleName() : "null");
+            return null;
+        }
+        
+        try {
+            BasicCredential basicCredential = (BasicCredential) credential;
+            MinIOStorageService minioService = new MinIOStorageService();
+            minioService.initialize(endpoint, bucket, basicCredential);
+            return minioService;
+            
+        } catch (Exception e) {
+            log.error("Failed to create MinIO storage service for endpoint: {} and bucket: {} - {}", 
+                    endpoint, bucket, e.getMessage(), e);
             return null;
         }
     }

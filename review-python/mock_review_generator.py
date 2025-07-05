@@ -54,6 +54,7 @@ def randomize_review():
 
     review["hotelId"] = random.randint(10000, 99999)
     review["hotelName"] = faker.company()
+    review["platform"] = random.choice(["Agoda", "Booking.com", "Expedia"])
     review["comment"]["hotelReviewId"] = random.randint(1_000_000_000, 9_999_999_999)
     review["comment"]["rating"] = round(random.uniform(5, 10), 1)
     review["comment"]["formattedRating"] = str(review["comment"]["rating"])

@@ -1,9 +1,11 @@
 package com.reviewproducer.service;
 
 import com.reviewcore.model.BasicCredential;
+import com.reviewproducer.model.FileMetadata;
 import io.minio.MinioClient;
 import io.minio.ListObjectsArgs;
 import io.minio.GetObjectArgs;
+import io.minio.StatObjectArgs;
 import io.minio.Result;
 import io.minio.errors.*;
 import io.minio.messages.Item;
@@ -12,11 +14,16 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -26,57 +33,26 @@ public class MinIOStorageService implements StorageService {
     private String bucketName;
     private String endpoint;
     
-    public MinIOStorageService() {
-        // Default constructor for Spring
-    }
+    public MinIOStorageService() {}
     
-    public void initialize(BasicCredential credential, String endpoint, String bucketName) {
-        if (credential == null) {
-            throw new IllegalArgumentException("Basic credential cannot be null");
-        }
-        
-        if (endpoint == null || endpoint.trim().isEmpty()) {
-            throw new IllegalArgumentException("Endpoint cannot be null or empty");
-        }
-        
-        if (bucketName == null || bucketName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Bucket name cannot be null or empty");
-        }
-        
-        if (credential.getUsername() == null || credential.getUsername().trim().isEmpty()) {
-            throw new IllegalArgumentException("MinIO username cannot be null or empty");
-        }
-        
-        if (credential.getPassword() == null || credential.getPassword().trim().isEmpty()) {
-            throw new IllegalArgumentException("MinIO password cannot be null or empty");
-        }
-        
+    public void initialize(String endpoint, String bucketName, BasicCredential credential) {
         this.endpoint = endpoint;
         this.bucketName = bucketName;
         
         try {
+            log.info("Initializing MinIO client for endpoint: {} and bucket: {}", endpoint, bucketName);
+            
             this.minioClient = MinioClient.builder()
                     .endpoint(endpoint)
                     .credentials(credential.getUsername(), credential.getPassword())
                     .build();
             
-            log.info("Initialized MinIO client for endpoint: {} and bucket: {}", endpoint, bucketName);
-            
-            // Test the connection by checking if bucket exists
-            testConnection();
-            
-        } catch (Exception e) {
-            log.error("Failed to initialize MinIO client for endpoint: {} and bucket: {} - {}", 
-                    endpoint, bucketName, e.getMessage(), e);
-            throw new RuntimeException("Failed to initialize MinIO client", e);
-        }
-    }
-    
-    private void testConnection() {
-        try {
-            boolean bucketExists = minioClient.bucketExists(io.minio.BucketExistsArgs.builder()
-                    .bucket(bucketName)
-                    .build());
+            // Test connection
+            boolean bucketExists = minioClient.bucketExists(
+                    io.minio.BucketExistsArgs.builder()
+                            .bucket(bucketName)
+                            .build()
+            );
             
             if (!bucketExists) {
                 log.error("MinIO bucket does not exist: {}", bucketName);
@@ -85,50 +61,28 @@ public class MinIOStorageService implements StorageService {
             
             log.info("Successfully connected to MinIO bucket: {}", bucketName);
             
-        } catch (ErrorResponseException e) {
-            if (e.errorResponse().code().equals("AccessDenied")) {
-                log.error("Access denied to MinIO bucket: {} - check credentials and permissions - {}", 
-                        bucketName, e.getMessage());
-                throw new RuntimeException("Access denied to MinIO bucket: " + bucketName, e);
-            } else {
-                log.error("MinIO error testing connection to bucket: {} - {}", bucketName, e.getMessage(), e);
-                throw new RuntimeException("MinIO error testing connection to bucket: " + bucketName, e);
-            }
-        } catch (InsufficientDataException | InternalException | InvalidKeyException | 
-                 InvalidResponseException | NoSuchAlgorithmException | ServerException | 
-                 XmlParserException e) {
-            log.error("MinIO SDK error testing connection to bucket: {} - {}", bucketName, e.getMessage(), e);
-            throw new RuntimeException("MinIO SDK error testing connection to bucket: " + bucketName, e);
-        } catch (Exception e) {
-            log.error("Unexpected error testing connection to MinIO bucket: {} - {}", bucketName, e.getMessage(), e);
-            throw new RuntimeException("Unexpected error testing connection to MinIO bucket: " + bucketName, e);
+        } catch (MinioException | InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+            log.error("Failed to initialize MinIO client for endpoint: {} and bucket: {} - {}", 
+                    endpoint, bucketName, e.getMessage(), e);
+            throw new RuntimeException("Failed to initialize MinIO client", e);
         }
     }
     
     @Override
     public List<String> listReviewFiles(String prefix) {
-        if (minioClient == null) {
-            log.error("MinIO client is not initialized");
-            throw new IllegalStateException("MinIO client is not initialized");
-        }
-        
-        if (prefix == null) {
-            prefix = "";
-        }
-        
         try {
             log.debug("Listing MinIO objects in bucket: {} with prefix: {}", bucketName, prefix);
             
-            Iterable<Result<Item>> results = minioClient.listObjects(
-                ListObjectsArgs.builder()
-                    .bucket(bucketName)
-                    .prefix(prefix)
-                    .maxKeys(1000) // Limit results to avoid timeouts
-                    .build()
+            Iterable<Result<Item>> objects = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .prefix(prefix)
+                            .recursive(false)
+                            .build()
             );
             
             List<String> files = new ArrayList<>();
-            for (Result<Item> result : results) {
+            for (Result<Item> result : objects) {
                 Item item = result.get();
                 if (item.objectName().endsWith(".jl")) {
                     files.add(item.objectName());
@@ -138,136 +92,228 @@ public class MinIOStorageService implements StorageService {
             log.info("Found {} .jl files in prefix: {}", files.size(), prefix);
             return files;
             
-        } catch (ErrorResponseException e) {
-            if (e.errorResponse().code().equals("AccessDenied")) {
-                log.error("Access denied listing MinIO objects in bucket: {} with prefix: {} - {}", 
-                        bucketName, prefix, e.getMessage());
-                throw new RuntimeException("Access denied listing MinIO objects in bucket: " + bucketName, e);
-            } else if (e.errorResponse().code().equals("NoSuchBucket")) {
-                log.error("MinIO bucket not found: {} - {}", bucketName, e.getMessage());
-                throw new RuntimeException("MinIO bucket not found: " + bucketName, e);
-            } else {
-                log.error("MinIO error listing objects in bucket: {} with prefix: {} - {}", 
-                        bucketName, prefix, e.getMessage(), e);
-                throw new RuntimeException("MinIO error listing objects in bucket: " + bucketName, e);
-            }
-        } catch (InsufficientDataException | InternalException | InvalidKeyException | 
-                 InvalidResponseException | NoSuchAlgorithmException | ServerException | 
-                 XmlParserException e) {
-            log.error("MinIO SDK error listing objects in bucket: {} with prefix: {} - {}", 
+        } catch (MinioException | InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+            log.error("Error listing MinIO files in bucket: {} with prefix: {} - {}", 
                     bucketName, prefix, e.getMessage(), e);
-            throw new RuntimeException("MinIO SDK error listing objects in bucket: " + bucketName, e);
-        } catch (Exception e) {
-            log.error("Unexpected error listing MinIO objects in bucket: {} with prefix: {} - {}", 
-                    bucketName, prefix, e.getMessage(), e);
-            throw new RuntimeException("Unexpected error listing MinIO objects in bucket: " + bucketName, e);
+            throw new RuntimeException("Failed to list MinIO files", e);
         }
     }
-
+    
+    @Override
+    public List<String> listReviewFilesRecursive(String prefix) {
+        try {
+            log.debug("Listing MinIO objects recursively in bucket: {} with prefix: {}", bucketName, prefix);
+            
+            Iterable<Result<Item>> objects = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .prefix(prefix)
+                            .recursive(true)
+                            .build()
+            );
+            
+            List<String> files = new ArrayList<>();
+            for (Result<Item> result : objects) {
+                Item item = result.get();
+                if (item.objectName().endsWith(".jl")) {
+                    files.add(item.objectName());
+                }
+            }
+            
+            log.info("Found {} .jl files recursively in prefix: {}", files.size(), prefix);
+            
+            // Log file names at DEBUG level
+            for (String file : files) {
+                log.debug("Found file: {}", file);
+            }
+            
+            return files;
+            
+        } catch (MinioException | InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+            log.error("Error listing MinIO files recursively in bucket: {} with prefix: {} - {}", 
+                    bucketName, prefix, e.getMessage(), e);
+            throw new RuntimeException("Failed to list MinIO files recursively", e);
+        }
+    }
+    
+    @Override
+    public List<FileMetadata> listReviewFilesWithMetadata(String prefix) {
+        try {
+            log.info("Listing MinIO objects with metadata in bucket: {} with prefix: {}", bucketName, prefix);
+            
+            Iterable<Result<Item>> objects = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .prefix(prefix)
+                            .recursive(true)
+                            .build()
+            );
+            
+            // First, let's count and print ALL objects found to understand the structure
+            List<Item> allItems = new ArrayList<>();
+            for (Result<Item> result : objects) {
+                allItems.add(result.get());
+            }
+            
+            log.info("Total objects found in bucket {} with prefix {}: {}", bucketName, prefix, allItems.size());
+            
+            if (allItems.isEmpty()) {
+                log.warn("No objects found in bucket {} with prefix {}", bucketName, prefix);
+                return new ArrayList<>();
+            }
+            
+            // Print all objects for debugging
+            for (Item item : allItems) {
+                log.info("Found object: {} (size: {} bytes, modified: {})", 
+                        item.objectName(), item.size(), item.lastModified());
+            }
+            
+            List<FileMetadata> files = new ArrayList<>();
+            
+            for (Item item : allItems) {
+                if (item.objectName().endsWith(".jl")) {
+                    String fileName = item.objectName().substring(item.objectName().lastIndexOf('/') + 1);
+                    ZonedDateTime lastModified = item.lastModified();
+                    
+                    FileMetadata metadata = new FileMetadata(
+                            fileName,
+                            item.objectName(),
+                            item.size(),
+                            lastModified.toInstant(),
+                            lastModified.toInstant(), // MinIO doesn't provide creation time, using lastModified
+                            item.etag(),
+                            "application/jsonl"
+                    );
+                    
+                    files.add(metadata);
+                    log.info("Found .jl file: {} (size: {} bytes, modified: {})", 
+                            item.objectName(), item.size(), lastModified);
+                }
+            }
+            
+            log.info("Found {} .jl files with metadata in prefix: {}", files.size(), prefix);
+            
+            // Log subfolder structure
+            Set<String> subfolders = new HashSet<>();
+            for (Item item : allItems) {
+                String key = item.objectName();
+                int lastSlash = key.lastIndexOf('/');
+                if (lastSlash > 0) {
+                    subfolders.add(key.substring(0, lastSlash));
+                }
+            }
+            
+            log.info("Found {} subfolders:", subfolders.size());
+            for (String subfolder : subfolders) {
+                log.info("  - Subfolder: {}", subfolder);
+            }
+            
+            return files;
+            
+        } catch (MinioException | InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+            log.error("Error listing MinIO files with metadata in bucket: {} with prefix: {} - {}", 
+                    bucketName, prefix, e.getMessage(), e);
+            throw new RuntimeException("Failed to list MinIO files with metadata", e);
+        }
+    }
+    
     @Override
     public byte[] getFile(String key) {
-        if (minioClient == null) {
-            log.error("MinIO client is not initialized");
-            throw new IllegalStateException("MinIO client is not initialized");
-        }
-        
-        if (key == null || key.trim().isEmpty()) {
-            log.error("MinIO object key cannot be null or empty");
-            throw new IllegalArgumentException("MinIO object key cannot be null or empty");
-        }
-        
         try {
-            log.debug("Downloading MinIO object: {} from bucket: {}", key, bucketName);
+            log.debug("Getting MinIO file: {} from bucket: {}", key, bucketName);
             
             InputStream stream = minioClient.getObject(
-                GetObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(key)
-                    .build()
+                    GetObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(key)
+                            .build()
             );
             
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            int nRead;
-            byte[] data = new byte[1024];
-            while ((nRead = stream.read(data, 0, data.length)) != -1) {
-                buffer.write(data, 0, nRead);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = stream.read(buffer)) != -1) {
+                baos.write(buffer, 0, bytesRead);
             }
-            buffer.flush();
             
-            byte[] content = buffer.toByteArray();
-            log.info("Downloaded file: {} ({} bytes) from bucket: {}", key, content.length, bucketName);
+            byte[] content = baos.toByteArray();
+            stream.close();
+            baos.close();
+            
+            log.debug("Successfully retrieved MinIO file: {} ({} bytes)", key, content.length);
             return content;
             
-        } catch (ErrorResponseException e) {
-            if (e.errorResponse().code().equals("NoSuchKey")) {
-                log.error("MinIO object not found: {} in bucket: {} - {}", key, bucketName, e.getMessage());
-                throw new RuntimeException("MinIO object not found: " + key + " in bucket: " + bucketName, e);
-            } else if (e.errorResponse().code().equals("AccessDenied")) {
-                log.error("Access denied downloading MinIO object: {} from bucket: {} - {}", 
-                        key, bucketName, e.getMessage());
-                throw new RuntimeException("Access denied downloading MinIO object: " + key + " from bucket: " + bucketName, e);
-            } else {
-                log.error("MinIO error downloading object: {} from bucket: {} - {}", 
-                        key, bucketName, e.getMessage(), e);
-                throw new RuntimeException("MinIO error downloading object: " + key + " from bucket: " + bucketName, e);
-            }
-        } catch (InsufficientDataException | InternalException | InvalidKeyException | 
-                 InvalidResponseException | NoSuchAlgorithmException | ServerException | 
-                 XmlParserException e) {
-            log.error("MinIO SDK error downloading object: {} from bucket: {} - {}", 
-                    key, bucketName, e.getMessage(), e);
-            throw new RuntimeException("MinIO SDK error downloading object: " + key + " from bucket: " + bucketName, e);
+        } catch (MinioException | InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+            log.error("Error getting MinIO file {} from bucket: {} - {}", key, bucketName, e.getMessage(), e);
+            throw new RuntimeException("Failed to get MinIO file", e);
         } catch (Exception e) {
-            log.error("Unexpected error downloading MinIO object: {} from bucket: {} - {}", 
-                    key, bucketName, e.getMessage(), e);
-            throw new RuntimeException("Unexpected error downloading MinIO object: " + key + " from bucket: " + bucketName, e);
+            log.error("Unexpected error getting MinIO file {} from bucket: {} - {}", key, bucketName, e.getMessage(), e);
+            throw new RuntimeException("Failed to get MinIO file", e);
         }
     }
-
+    
+    @Override
+    public FileMetadata getFileMetadata(String key) {
+        try {
+            log.debug("Getting metadata for MinIO file: {} from bucket: {}", key, bucketName);
+            
+            var stat = minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(key)
+                            .build()
+            );
+            
+            String fileName = key.substring(key.lastIndexOf('/') + 1);
+            ZonedDateTime lastModified = stat.lastModified();
+            
+            FileMetadata metadata = new FileMetadata(
+                    fileName,
+                    key,
+                    stat.size(),
+                    lastModified.toInstant(),
+                    lastModified.toInstant(), // MinIO doesn't provide creation time
+                    stat.etag(),
+                    stat.contentType()
+            );
+            
+            log.debug("Retrieved metadata for file: {} (size: {} bytes, modified: {})", 
+                    key, stat.size(), lastModified);
+            
+            return metadata;
+            
+        } catch (MinioException | InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+            log.error("Error getting metadata for MinIO file {} from bucket: {} - {}", 
+                    key, bucketName, e.getMessage(), e);
+            throw new RuntimeException("Failed to get MinIO file metadata", e);
+        }
+    }
+    
     @Override
     public boolean fileExists(String key) {
-        if (minioClient == null) {
-            log.error("MinIO client is not initialized");
-            return false;
-        }
-        
-        if (key == null || key.trim().isEmpty()) {
-            log.error("MinIO object key cannot be null or empty");
-            return false;
-        }
-        
         try {
             minioClient.statObject(
-                io.minio.StatObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(key)
-                    .build()
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(key)
+                            .build()
             );
             return true;
+            
         } catch (ErrorResponseException e) {
             if (e.errorResponse().code().equals("NoSuchKey")) {
                 return false;
-            } else if (e.errorResponse().code().equals("AccessDenied")) {
-                log.error("Access denied checking existence of MinIO object: {} in bucket: {} - {}", 
-                        key, bucketName, e.getMessage());
-            } else {
-                log.error("MinIO error checking existence of object: {} in bucket: {} - {}", 
-                        key, bucketName, e.getMessage());
             }
-            return false;
-        } catch (InsufficientDataException | InternalException | InvalidKeyException | 
-                 InvalidResponseException | NoSuchAlgorithmException | ServerException | 
-                 XmlParserException e) {
-            log.error("MinIO SDK error checking existence of object: {} in bucket: {} - {}", 
+            log.error("Error checking if MinIO file exists: {} in bucket: {} - {}", 
                     key, bucketName, e.getMessage(), e);
             return false;
-        } catch (Exception e) {
-            log.error("Unexpected error checking existence of MinIO object: {} in bucket: {} - {}", 
+        } catch (MinioException | InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+            log.error("Error checking if MinIO file exists: {} in bucket: {} - {}", 
                     key, bucketName, e.getMessage(), e);
             return false;
         }
     }
-
+    
     @Override
     public String getStorageType() {
         return "minio";
