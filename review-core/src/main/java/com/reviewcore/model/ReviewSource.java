@@ -32,4 +32,12 @@ public class ReviewSource {
 
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
+    
+    // Convenience methods for worker module
+    public String getEncryptedCredentials() { return credentialJson; }
+    public String getLocation() { return uri; }
+    public void setLastProcessed(java.time.Instant instant) { 
+        this.lastProcessedTimestamp = instant != null ? 
+            instant.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null; 
+    }
 } 

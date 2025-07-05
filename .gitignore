@@ -48,4 +48,5 @@ docker-compose.override.yml
 /build/
 
 # Generated
-/generated/ 
+/generated/
+**/logs/
