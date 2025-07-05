@@ -1,0 +1,67 @@
+# Review Producer Application Configuration
+
+server:
+  port: 7072
+
+spring:
+  application:
+    name: review-producer
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/reviews
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 1
+      buffer-memory: 33554432
+    consumer:
+      group-id: review-producer
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+# Kafka topic configuration
+kafka:
+  topic:
+    reviews: reviews
+    bad-reviews: bad-reviews
+
+# Logging configuration
+logging:
+  level:
+    com.reviewproducer: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+review-source-job:
+  enabled: true
+  fixed-delay-ms: 60000 
