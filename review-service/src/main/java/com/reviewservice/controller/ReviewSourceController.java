@@ -75,11 +75,31 @@ public class ReviewSourceController {
     }
 
     @PostMapping("/admin/source/update-active")
-    public ResponseEntity<Void> updateActive(@RequestParam(value = "activeIds", required = false) Long[] activeIds) {
+    public ResponseEntity<Void> updateActive(@RequestParam(value = "activeIds", required = false) String[] activeIds) {
         logger.info("Updating active status for sources");
         logger.debug("Active IDs: {}", (Object) activeIds);
+        
+        // Convert String[] to Long[]
+        Long[] longActiveIds = null;
+        if (activeIds != null) {
+            longActiveIds = new Long[activeIds.length];
+            for (int i = 0; i < activeIds.length; i++) {
+                try {
+                    longActiveIds[i] = Long.parseLong(activeIds[i]);
+                } catch (NumberFormatException e) {
+                    logger.warn("Invalid ID format: {}", activeIds[i]);
+                    longActiveIds[i] = null;
+                }
+            }
+        }
+        
         Iterable<ReviewSource> allSources = reviewSourceRepository.findAll();
-        java.util.Set<Long> activeSet = activeIds != null ? java.util.Arrays.stream(activeIds).collect(java.util.stream.Collectors.toSet()) : java.util.Collections.emptySet();
+        java.util.Set<Long> activeSet = longActiveIds != null ? 
+            java.util.Arrays.stream(longActiveIds)
+                .filter(id -> id != null)
+                .collect(java.util.stream.Collectors.toSet()) : 
+            java.util.Collections.emptySet();
+            
         for (ReviewSource src : allSources) {
             boolean shouldBeActive = activeSet.contains(src.getId());
             if (src.getActive() == null || src.getActive() != shouldBeActive) {
