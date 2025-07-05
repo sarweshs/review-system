@@ -62,6 +62,27 @@
             <version>3.1.1</version>
         </dependency>
 
+        <!-- Redis for Vault key caching -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <version>3.2.6</version>
+        </dependency>
+
+        <!-- AWS SDK for S3/Storj access -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.24.12</version>
+        </dependency>
+
+        <!-- MinIO client -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.7</version>
+        </dependency>
+
         <!-- JSON Processing -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -122,12 +143,6 @@
                 <version>3.2.6</version>
                 <configuration>
                     <skip>false</skip>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
