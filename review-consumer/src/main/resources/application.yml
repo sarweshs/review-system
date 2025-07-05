@@ -1,0 +1,44 @@
+server:
+  port: 7073
+
+spring:
+  application:
+    name: review-consumer
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: review-consumer-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.reviewcore.model.Review
+    listener:
+      ack-mode: manual
+      concurrency: 3
+      poll-timeout: 3000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.reviewconsumer: INFO
+    org.apache.kafka: WARN
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/review-consumer.log
+    max-size: 10MB
+    max-history: 30 
