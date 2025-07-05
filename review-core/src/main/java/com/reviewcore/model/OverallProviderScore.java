@@ -21,28 +21,28 @@ public class OverallProviderScore {
     @Column(name = "provider")
     private String provider;
     
-    @Column(name = "overall_score")
+    @Column(name = "overall_score", columnDefinition = "numeric(3,1)")
     private Double overallScore;
     
     @Column(name = "review_count")
     private Integer reviewCount;
     
-    @Column(name = "cleanliness")
+    @Column(name = "cleanliness", columnDefinition = "numeric(3,1)")
     private Double cleanliness;
     
-    @Column(name = "facilities")
+    @Column(name = "facilities", columnDefinition = "numeric(3,1)")
     private Double facilities;
     
-    @Column(name = "location")
+    @Column(name = "location", columnDefinition = "numeric(3,1)")
     private Double location;
     
-    @Column(name = "room_comfort_quality")
+    @Column(name = "room_comfort_quality", columnDefinition = "numeric(3,1)")
     private Double roomComfortQuality;
     
-    @Column(name = "service")
+    @Column(name = "service", columnDefinition = "numeric(3,1)")
     private Double service;
     
-    @Column(name = "value_for_money")
+    @Column(name = "value_for_money",columnDefinition = "numeric(3,1)")
     private Double valueForMoney;
     
     @Embeddable

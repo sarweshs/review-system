@@ -1,15 +1,21 @@
-# Add your Python dependencies here
-# For data generation
+# Review System Python Dependencies
+
+# Data generation and utilities
 faker==25.8.0
 
-# For PostgreSQL DB connectivity
+# Database connectivity
 psycopg2-binary==2.9.9
-
-# For Kafka producer
-kafka-python==2.0.2
-
 sqlalchemy
+
+# Kafka messaging
+confluent-kafka>=2.3.0
+
+# Security and encryption
 cryptography
+
+# HTTP and cloud services
 requests
-python-dotenv
 boto3==1.34.34
+
+# Configuration and environment
+python-dotenv

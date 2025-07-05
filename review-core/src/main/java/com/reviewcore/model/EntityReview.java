@@ -28,7 +28,7 @@ public class EntityReview {
     @Column(name = "provider_id")
     private Integer providerId;
     
-    @Column(name = "rating")
+    @Column(name = "rating", columnDefinition = "numeric(3,1)")
     private Double rating;
     
     @Column(name = "rating_text")

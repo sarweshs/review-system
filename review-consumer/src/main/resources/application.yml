@@ -6,7 +6,7 @@ spring:
     name: review-consumer
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/review_system
+    url: jdbc:postgresql://localhost:5432/reviews
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
