@@ -1,7 +1,7 @@
 package com.reviewconsumer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.reviewcore.model.Review;
+import com.reviewcore.model.EntityReview;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ public class ReviewConsumerService {
         containerFactory = "kafkaListenerContainerFactory"
     )
     public void consumeReview(
-            @Payload Review review,
+            @Payload EntityReview review,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
@@ -81,7 +81,7 @@ public class ReviewConsumerService {
         containerFactory = "kafkaListenerContainerFactory"
     )
     public void consumeBadReview(
-            @Payload String badReviewJson,
+            @Payload com.reviewcore.dto.ReviewMessage badReviewMessage,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
@@ -90,10 +90,10 @@ public class ReviewConsumerService {
         try {
             logger.info("Received bad review from topic: {}, partition: {}, offset: {}", 
                        topic, partition, offset);
-            logger.debug("Processing bad review: {}", badReviewJson);
+            logger.debug("Processing bad review: {}", badReviewMessage);
             
             // Process the bad review
-            processBadReview(badReviewJson);
+            processBadReview(badReviewMessage);
             
             // Update metrics
             metricsService.incrementBadReviews();
@@ -115,7 +115,7 @@ public class ReviewConsumerService {
         }
     }
     
-    private void processReview(Review review) {
+    private void processReview(EntityReview review) {
         // TODO: Implement actual review processing logic
         // This could include:
         // - Storing in database
@@ -123,8 +123,8 @@ public class ReviewConsumerService {
         // - Triggering notifications
         // - Data enrichment
         
-        logger.info("Processing review for hotel ID: {} from platform: {}", 
-                   review.getHotelId(), review.getProvider());
+        logger.info("Processing review for entity ID: {} from platform: {}", 
+                   review.getEntityId(), review.getPlatform());
         
         // Simulate some processing time
         try {

@@ -1,6 +1,6 @@
 package com.reviewservice.service;
 
-import com.reviewcore.model.Review;
+import com.reviewcore.model.EntityReview;
 import com.reviewservice.repository.ReviewRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -14,9 +14,9 @@ public class ReviewService {
         this.reviewRepository = reviewRepository;
     }
 
-    public void processReview(Review review) {
+    public void processReview(EntityReview review) {
         // Idempotency: check if review already exists
-        if (!reviewRepository.existsByReviewId(review.getReviewId())) {
+        if (!reviewRepository.existsByReviewId(review.getReviewId().toString())) {
             reviewRepository.save(review);
         }
     }
