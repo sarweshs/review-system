@@ -38,10 +38,18 @@ public class BadReviewRecordController {
      * Get bad review record by ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<BadReviewRecord> getBadRecordById(@PathVariable Long id) {
-        return ResponseEntity.ok(getBadRecordByIdBody(id));
+    public ResponseEntity<BadReviewRecord> getBadRecordById(@PathVariable(name = "id") Long id) {
+        try {
+            return ResponseEntity.ok(getBadRecordByIdBody(id));
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                log.warn("Bad review record not found with id: {}", id);
+                return ResponseEntity.notFound().build();
+            }
+            throw e; // Re-throw other runtime exceptions
+        }
     }
-    @Cacheable(value = "bad-reviews", key = "'bad_id_' + #id")
+    @Cacheable(value = "bad-reviews", key = "'bad_id_' + (#id != null ? #id : 'null')")
     public BadReviewRecord getBadRecordByIdBody(Long id) {
         log.info("Fetching bad review record with id: {}", id);
         return badReviewRecordService.getBadRecordById(id);
@@ -51,10 +59,10 @@ public class BadReviewRecordController {
      * Get bad records by platform
      */
     @GetMapping("/platform/{platform}")
-    public ResponseEntity<List<BadReviewRecord>> getBadRecordsByPlatform(@PathVariable String platform) {
+    public ResponseEntity<List<BadReviewRecord>> getBadRecordsByPlatform(@PathVariable(name = "platform") String platform) {
         return ResponseEntity.ok(getBadRecordsByPlatformBody(platform));
     }
-    @Cacheable(value = "bad-reviews", key = "'bad_platform_' + #platform")
+    @Cacheable(value = "bad-reviews", key = "'bad_platform_' + (#platform != null ? #platform : 'null')")
     public List<BadReviewRecord> getBadRecordsByPlatformBody(String platform) {
         log.info("Fetching bad review records for platform: {}", platform);
         return badReviewRecordService.getBadRecordsByPlatform(platform);
@@ -64,10 +72,10 @@ public class BadReviewRecordController {
      * Get bad records by reason
      */
     @GetMapping("/reason")
-    public ResponseEntity<List<BadReviewRecord>> getBadRecordsByReason(@RequestParam String reason) {
+    public ResponseEntity<List<BadReviewRecord>> getBadRecordsByReason(@RequestParam(name = "reason") String reason) {
         return ResponseEntity.ok(getBadRecordsByReasonBody(reason));
     }
-    @Cacheable(value = "bad-reviews", key = "'bad_reason_' + #reason")
+    @Cacheable(value = "bad-reviews", key = "'bad_reason_' + (#reason != null ? #reason : 'null')")
     public List<BadReviewRecord> getBadRecordsByReasonBody(String reason) {
         log.info("Fetching bad review records with reason containing: {}", reason);
         return badReviewRecordService.getBadRecordsByReason(reason);
@@ -78,10 +86,10 @@ public class BadReviewRecordController {
      */
     @GetMapping("/after-date")
     public ResponseEntity<List<BadReviewRecord>> getBadRecordsAfterDate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date) {
+            @RequestParam(name = "date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date) {
         return ResponseEntity.ok(getBadRecordsAfterDateBody(date));
     }
-    @Cacheable(value = "bad-reviews", key = "'bad_after_date_' + #date")
+    @Cacheable(value = "bad-reviews", key = "'bad_after_date_' + (#date != null ? #date.toString() : 'null')")
     public List<BadReviewRecord> getBadRecordsAfterDateBody(LocalDateTime date) {
         log.info("Fetching bad review records created after: {}", date);
         return badReviewRecordService.getBadRecordsAfterDate(date);
@@ -117,10 +125,10 @@ public class BadReviewRecordController {
      * Get statistics for a specific platform
      */
     @GetMapping("/statistics/platform/{platform}")
-    public ResponseEntity<Map<String, Object>> getStatisticsByPlatform(@PathVariable String platform) {
+    public ResponseEntity<Map<String, Object>> getStatisticsByPlatform(@PathVariable(name = "platform") String platform) {
         return ResponseEntity.ok(getStatisticsByPlatformBody(platform));
     }
-    @Cacheable(value = "review-stats", key = "'bad_statistics_platform_' + #platform")
+    @Cacheable(value = "review-stats", key = "'bad_statistics_platform_' + (#platform != null ? #platform : 'null')")
     public Map<String, Object> getStatisticsByPlatformBody(String platform) {
         log.info("Fetching bad review records statistics for platform: {}", platform);
         return badReviewRecordService.getStatisticsByPlatform(platform);
@@ -130,10 +138,18 @@ public class BadReviewRecordController {
      * Delete bad review record by ID
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteBadRecord(@PathVariable Long id) {
-        log.info("Deleting bad review record with id: {}", id);
-        badReviewRecordService.deleteBadRecord(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Void> deleteBadRecord(@PathVariable(name = "id") Long id) {
+        try {
+            log.info("Deleting bad review record with id: {}", id);
+            badReviewRecordService.deleteBadRecord(id);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                log.warn("Bad review record not found for deletion with id: {}", id);
+                return ResponseEntity.notFound().build();
+            }
+            throw e; // Re-throw other runtime exceptions
+        }
     }
     
     /**
@@ -141,7 +157,7 @@ public class BadReviewRecordController {
      */
     @DeleteMapping("/cleanup")
     public ResponseEntity<Void> deleteOldRecords(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cutoffDate) {
+            @RequestParam(name = "cutoffDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cutoffDate) {
         log.info("Deleting bad review records older than: {}", cutoffDate);
         badReviewRecordService.deleteOldRecords(cutoffDate);
         return ResponseEntity.noContent().build();

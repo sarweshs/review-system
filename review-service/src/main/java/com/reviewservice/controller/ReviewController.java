@@ -47,7 +47,7 @@ public class ReviewController {
     public Map<String, Object> getAllReviewsBody(
             int page, int size, String sortBy, String sortDir, String platform, Double minRating, Double maxRating, String search
     ) {
-        log.info("Fetching reviews - page: {}, size: {}, sortBy: {}, sortDir: {}", page, size, sortBy, sortDir);
+        log.info("🔍 CACHE MISS - Fetching reviews from database - page: {}, size: {}, sortBy: {}, sortDir: {}", page, size, sortBy, sortDir);
         
         Sort sort = sortDir.equalsIgnoreCase("desc") ? 
             Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
@@ -63,6 +63,7 @@ public class ReviewController {
         response.put("hasNext", reviewsPage.hasNext());
         response.put("hasPrevious", reviewsPage.hasPrevious());
         
+        log.info("✅ CACHE MISS - Database query completed, returning {} reviews", reviewsPage.getContent().size());
         return response;
     }
     
