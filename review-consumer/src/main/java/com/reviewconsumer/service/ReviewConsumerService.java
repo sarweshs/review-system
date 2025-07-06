@@ -1,8 +1,9 @@
 package com.reviewconsumer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.reviewcore.model.EntityReview;
+import com.reviewcore.dto.ReviewMessage;
 import com.reviewcore.model.BadReviewRecord;
+import com.reviewcore.dto.BadReviewMessage;
 import com.reviewconsumer.repository.BadReviewRecordRepository;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -26,25 +27,28 @@ public class ReviewConsumerService {
     private final ObjectMapper objectMapper;
     private final MetricsService metricsService;
     private final BadReviewRecordRepository badReviewRecordRepository;
+    private final ReviewProcessingService reviewProcessingService;
     
     private final AtomicLong processedCount = new AtomicLong(0);
     private final AtomicLong errorCount = new AtomicLong(0);
     
     @Autowired
     public ReviewConsumerService(ObjectMapper objectMapper, MetricsService metricsService, 
-                               BadReviewRecordRepository badReviewRecordRepository) {
+                               BadReviewRecordRepository badReviewRecordRepository,
+                               ReviewProcessingService reviewProcessingService) {
         this.objectMapper = objectMapper;
         this.metricsService = metricsService;
         this.badReviewRecordRepository = badReviewRecordRepository;
+        this.reviewProcessingService = reviewProcessingService;
     }
     
     @KafkaListener(
-        topics = "${kafka.topics.reviews:reviews}",
+        topics = "${kafka.topic.reviews}",
         groupId = "${spring.kafka.consumer.group-id}",
         containerFactory = "kafkaListenerContainerFactory"
     )
     public void consumeReview(
-            @Payload EntityReview review,
+            @Payload String reviewJson,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
@@ -53,7 +57,10 @@ public class ReviewConsumerService {
         try {
             logger.info("Received review from topic: {}, partition: {}, offset: {}", 
                        topic, partition, offset);
-            logger.debug("Processing review: {}", review);
+            logger.debug("Processing review JSON: {}", reviewJson);
+            
+            // Parse the JSON review
+            ReviewMessage review = objectMapper.readValue(reviewJson, ReviewMessage.class);
             
             // Process the review
             processReview(review);
@@ -81,80 +88,62 @@ public class ReviewConsumerService {
     }
     
     @KafkaListener(
-        topics = "${kafka.topics.bad-reviews:bad_review_records}",
+        topics = "${kafka.topic.bad-reviews}",
         groupId = "${spring.kafka.consumer.group-id}",
         containerFactory = "kafkaListenerContainerFactory"
     )
     public void consumeBadReview(
-            @Payload com.reviewcore.dto.ReviewMessage badReviewMessage,
+            @Payload String payload,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
-        
         try {
             logger.info("Received bad review from topic: {}, partition: {}, offset: {}", 
                        topic, partition, offset);
-            logger.debug("Processing bad review: {}", badReviewMessage);
-            
-            // Process the bad review
+            logger.debug("Processing bad review payload: {}", payload);
+
+            BadReviewMessage badReviewMessage = objectMapper.readValue(payload, BadReviewMessage.class);
             processBadReview(badReviewMessage);
-            
-            // Update metrics
             metricsService.incrementBadReviews();
-            
-            // Acknowledge the message
             acknowledgment.acknowledge();
-            
             logger.info("Successfully processed bad review");
-            
         } catch (Exception e) {
             long currentErrorCount = errorCount.incrementAndGet();
             metricsService.incrementErrorCount();
-            
             logger.error("Error processing bad review from topic: {}, partition: {}, offset: {}. " +
                         "Error count: {}", topic, partition, offset, currentErrorCount, e);
-            
-            // Acknowledge to avoid infinite retries
             acknowledgment.acknowledge();
         }
     }
     
-    private void processReview(EntityReview review) {
-        // TODO: Implement actual review processing logic
-        // This could include:
-        // - Storing in database
-        // - Sending to analytics
-        // - Triggering notifications
-        // - Data enrichment
+    private void processReview(ReviewMessage review) {
+        logger.info("Processing review for hotelId: {} from platform: {}", 
+                   review.getHotelId(), review.getPlatform());
         
-        logger.info("Processing review for entity ID: {} from platform: {}", 
-                   review.getEntityId(), review.getPlatform());
+        // Use the ReviewProcessingService to store the review in database
+        reviewProcessingService.processReviewMessage(review);
         
-        // Simulate some processing time
-        try {
-            Thread.sleep(10);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        logger.info("Successfully stored review for hotelId: {} in database", review.getHotelId());
     }
     
-    private void processBadReview(com.reviewcore.dto.ReviewMessage badReviewMessage) {
+    void processBadReview(BadReviewMessage badReviewMessage) {
         try {
-            // Convert the ReviewMessage to JSON string
+            // Convert the BadReviewMessage to JSON string
             String jsonData = objectMapper.writeValueAsString(badReviewMessage);
             
-            // Create BadReviewRecord entity
+            // Create BadReviewRecord entity with the actual validation reason from the message
             BadReviewRecord badReviewRecord = new BadReviewRecord(
                 jsonData,
                 badReviewMessage.getPlatform(),
-                "Invalid review data structure or validation failure"
+                badReviewMessage.getReason()
             );
             
             // Save to database
             BadReviewRecord savedRecord = badReviewRecordRepository.save(badReviewRecord);
             
-            logger.info("Stored bad review record in database with ID: {}", savedRecord.getId());
+            logger.info("Stored bad review record in database with ID: {} and reason: {}", 
+                       savedRecord.getId(), badReviewMessage.getReason());
             
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             logger.error("Failed to serialize bad review message to JSON: {}", badReviewMessage, e);

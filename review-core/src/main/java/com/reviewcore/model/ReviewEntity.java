@@ -16,7 +16,6 @@ import lombok.AllArgsConstructor;
 public class ReviewEntity {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "entity_id")
     private Integer entityId;
     

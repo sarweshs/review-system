@@ -172,3 +172,36 @@ akhq:
      --topic bad_review_records \
      --reset-offsets --to-earliest --execute
 ````
+## Clear Kafka Topic
+```sh
+./kafka-configs.sh --bootstrap-server localhost:9092 \
+  --entity-type topics --entity-name bad_review_records \
+  --alter --add-config retention.ms=1000
+  
+./kafka-configs.sh --bootstrap-server localhost:9092 \
+  --entity-type topics --entity-name reviews \
+  --alter --add-config retention.ms=1000
+```
+## Check Kafka Topics
+```sh
+kafka-topics.sh --bootstrap-server localhost:9092 --list
+./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic bad_review_records
+./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic good_review_records
+```
+
+## Delete Kafka Topic
+```sh
+# Delete
+./kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic bad_review_records
+./kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic good_review_records
+
+# Recreate
+./kafka-topics.sh --bootstrap-server localhost:9092 --create --topic bad_review_records --partitions 1 --replication-factor 1
+./kafka-topics.sh --bootstrap-server localhost:9092 --create --topic good_review_records --partitions 1 --replication-factor 1
+
+````
+## check kafka messages
+```sh
+docker exec -it review-system-kafka-1 kafka-console-consumer --bootstrap-server localhost:9092 --topic good_review_records --from-beginning --max-messages 5
+docker exec -it review-system-kafka-1 kafka-console-consumer --bootstrap-server localhost:9092 --topic bad_review_records --from-beginning --max-messages 5
+```

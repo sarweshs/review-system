@@ -50,7 +50,7 @@ spring:
 # Kafka topic configuration
 kafka:
   topic:
-    reviews: reviews
+    reviews: good_review_records
     bad-reviews: bad_review_records
 
 # Enhanced Logging configuration

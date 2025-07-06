@@ -5,7 +5,7 @@ A Spring Boot application that consumes review records from Kafka topics and pro
 ## Overview
 
 The Review Consumer module is responsible for:
-- Consuming valid review records from the `reviews` Kafka topic
+- Consuming valid review records from the `good_review_records` Kafka topic
 - Consuming bad review records from the `bad_review_records` Kafka topic
 - Processing and handling the consumed records
 - Providing metrics and health endpoints
@@ -104,7 +104,7 @@ docker run -p 7073:7073 review-consumer
 ## Consumer Behavior
 
 ### Review Processing
-1. Consumes `Review` objects from the `reviews` topic
+1. Consumes `Review` objects from the `good_review_records` topic
 2. Processes each review (placeholder for business logic)
 3. Updates metrics
 4. Manually acknowledges the message

@@ -40,7 +40,7 @@ python kafka_producer.py
 This will:
 - Read from `sample.jl` file
 - Connect to Kafka at `localhost:9092`
-- Send messages to `reviews` topic
+- Send messages to `good_review_records` topic
 - Use `hotelId` as message key
 - Run once (no loop)
 

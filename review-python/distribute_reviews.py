@@ -13,6 +13,23 @@ from cryptography.hazmat.backends import default_backend
 import glob
 import random
 
+# Platform mapping based on filename prefixes
+PLATFORM_MAPPING = {
+    "agoda_": "agoda",
+    "bookingcom_": "bookingcom", 
+    "expedia_": "expedia"
+}
+
+def get_platform_from_filename(filename):
+    """Extract platform from filename prefix"""
+    filename_lower = filename.lower()
+    
+    for prefix, platform in PLATFORM_MAPPING.items():
+        if filename_lower.startswith(prefix):
+            return platform
+    
+    return "other"
+
 # Logging setup
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "distribute_reviews.log")
@@ -193,7 +210,8 @@ def distribute_reviews():
                 # For Storj, use the endpoint and default bucket
                 endpoint_url = "https://gateway.storjshare.io"
                 bucket_name = "review-data"  # Default bucket name
-                object_key = f"reviews/{file_name}"
+                platform = get_platform_from_filename(file_name)
+                object_key = f"{platform}/{file_name}"
                 
                 success = upload_to_s3(file_path, bucket_name, object_key, access_key, secret_key, endpoint_url)
                 if success:
@@ -212,7 +230,8 @@ def distribute_reviews():
                 uri_parts = source['uri'].replace('http://', '').split('/')
                 endpoint_url = f"http://{uri_parts[0]}"
                 bucket_name = "review-data"  # Default bucket name
-                object_key = f"reviews/{file_name}"
+                platform = get_platform_from_filename(file_name)
+                object_key = f"{platform}/{file_name}"
                 
                 success = upload_to_minio(file_path, bucket_name, object_key, username, password, endpoint_url)
                 if success:

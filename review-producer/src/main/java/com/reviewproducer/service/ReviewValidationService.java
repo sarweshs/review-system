@@ -45,14 +45,14 @@ public class ReviewValidationService {
             // Parse JSON to check if it's valid JSON format
             JsonNode reviewNode = objectMapper.readTree(reviewJson);
             
-            // Check if hotel_id is null
-            JsonNode hotelIdNode = reviewNode.get("hotel_id");
+            // Check if hotelId is null
+            JsonNode hotelIdNode = reviewNode.get("hotelId");
             if (hotelIdNode == null || hotelIdNode.isNull()) {
                 return ValidationResult.invalid("HOTEL_ID_NULL");
             }
             
-            // Check if hotel_name is null
-            JsonNode hotelNameNode = reviewNode.get("hotel_name");
+            // Check if hotelName is null
+            JsonNode hotelNameNode = reviewNode.get("hotelName");
             if (hotelNameNode == null || hotelNameNode.isNull()) {
                 return ValidationResult.invalid("HOTEL_NAME_NULL");
             }

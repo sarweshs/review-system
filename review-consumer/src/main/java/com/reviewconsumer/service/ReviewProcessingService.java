@@ -40,8 +40,8 @@ public class ReviewProcessingService {
             // Extract entity type from hotelId
             EntityType entityType = EntityType.fromId("hotelId");
             
-            // Find or create entity
-            ReviewEntity entity = findOrCreateEntity(reviewMessage.getHotelName(), entityType);
+            // Find or create entity using hotelId as entity_id (cast Long to Integer)
+            ReviewEntity entity = findOrCreateEntity(reviewMessage.getHotelId().intValue(), reviewMessage.getHotelName(), entityType);
             
             // Process the review
             if (reviewMessage.getComment() != null) {
@@ -64,15 +64,18 @@ public class ReviewProcessingService {
     /**
      * Find or create an entity
      */
-    private ReviewEntity findOrCreateEntity(String entityName, EntityType entityType) {
-        Optional<ReviewEntity> existingEntity = entityRepository.findByEntityNameAndEntityType(entityName, entityType);
+    private ReviewEntity findOrCreateEntity(Integer hotelId, String entityName, EntityType entityType) {
+        // First try to find by entity_id (hotelId)
+        Optional<ReviewEntity> existingEntity = entityRepository.findById(hotelId);
         
         if (existingEntity.isPresent()) {
-            log.debug("Found existing entity: {} ({})", entityName, entityType);
+            log.debug("Found existing entity with ID: {} ({})", hotelId, entityName);
             return existingEntity.get();
         }
         
+        // Create new entity with hotelId as entity_id
         ReviewEntity newEntity = new ReviewEntity();
+        newEntity.setEntityId(hotelId);
         newEntity.setEntityName(entityName);
         newEntity.setEntityType(entityType);
         

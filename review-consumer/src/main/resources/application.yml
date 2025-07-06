@@ -28,8 +28,12 @@ spring:
       auto-offset-reset: earliest
       enable-auto-commit: false
       threads: 2
-      topics:
-        reviews: reviews
+
+# Kafka topic configuration
+kafka:
+  topic:
+    reviews: good_review_records
+    bad-reviews: bad_review_records
 
 logging:
   level:
