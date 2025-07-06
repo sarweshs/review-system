@@ -1,5 +1,9 @@
 package com.reviewproducer.service;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.Gauge;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -10,12 +14,102 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class MetricsService {
     
-    // Counters for tracking metrics
+    // Micrometer counters and timers
+    private final Counter filesProcessedCounter;
+    private final Counter linesProcessedCounter;
+    private final Counter validReviewsCounter;
+    private final Counter invalidReviewsCounter;
+    private final Counter processingErrorsCounter;
+    private final Counter sourcesProcessedCounter;
+    private final Counter filesFoundCounter;
+    private final Counter filesQueuedCounter;
+    private final Counter jobExecutionsCounter;
+    private final Counter sourcesSuccessCounter;
+    private final Counter sourcesFailureCounter;
+    
+    private final Timer fileProcessingTimer;
+    private final Timer sourceProcessingTimer;
+    private final Timer jobExecutionTimer;
+    
+    // Gauges for current state
+    private final AtomicLong activeThreads = new AtomicLong(0);
+    private final AtomicLong queueDepth = new AtomicLong(0);
+    
+    // Legacy counters for backward compatibility
     private final AtomicLong totalFilesProcessed = new AtomicLong(0);
     private final AtomicLong totalLinesProcessed = new AtomicLong(0);
     private final AtomicLong totalValidReviews = new AtomicLong(0);
     private final AtomicLong totalInvalidReviews = new AtomicLong(0);
     private final AtomicLong totalProcessingErrors = new AtomicLong(0);
+    
+    public MetricsService(MeterRegistry meterRegistry) {
+        // Initialize counters
+        this.filesProcessedCounter = Counter.builder("review_producer_files_processed_total")
+            .description("Total number of files processed")
+            .register(meterRegistry);
+            
+        this.linesProcessedCounter = Counter.builder("review_producer_lines_processed_total")
+            .description("Total number of lines processed")
+            .register(meterRegistry);
+            
+        this.validReviewsCounter = Counter.builder("review_producer_valid_reviews_total")
+            .description("Total number of valid reviews processed")
+            .register(meterRegistry);
+            
+        this.invalidReviewsCounter = Counter.builder("review_producer_invalid_reviews_total")
+            .description("Total number of invalid reviews processed")
+            .register(meterRegistry);
+            
+        this.processingErrorsCounter = Counter.builder("review_producer_processing_errors_total")
+            .description("Total number of processing errors")
+            .register(meterRegistry);
+            
+        this.sourcesProcessedCounter = Counter.builder("review_producer_sources_processed_total")
+            .description("Total number of sources processed")
+            .register(meterRegistry);
+            
+        this.filesFoundCounter = Counter.builder("review_producer_files_found_total")
+            .description("Total number of files found")
+            .register(meterRegistry);
+            
+        this.filesQueuedCounter = Counter.builder("review_producer_files_queued_total")
+            .description("Total number of files queued for processing")
+            .register(meterRegistry);
+            
+        this.jobExecutionsCounter = Counter.builder("review_producer_job_executions_total")
+            .description("Total number of job executions")
+            .register(meterRegistry);
+            
+        this.sourcesSuccessCounter = Counter.builder("review_producer_sources_success_total")
+            .description("Total number of successful source processing")
+            .register(meterRegistry);
+            
+        this.sourcesFailureCounter = Counter.builder("review_producer_sources_failure_total")
+            .description("Total number of failed source processing")
+            .register(meterRegistry);
+        
+        // Initialize timers
+        this.fileProcessingTimer = Timer.builder("review_producer_file_processing_duration")
+            .description("Time taken to process individual files")
+            .register(meterRegistry);
+            
+        this.sourceProcessingTimer = Timer.builder("review_producer_source_processing_duration")
+            .description("Time taken to process sources")
+            .register(meterRegistry);
+            
+        this.jobExecutionTimer = Timer.builder("review_producer_job_execution_duration")
+            .description("Time taken for complete job execution")
+            .register(meterRegistry);
+        
+        // Initialize gauges
+        Gauge.builder("review_producer_active_threads", activeThreads, AtomicLong::get)
+            .description("Number of active processing threads")
+            .register(meterRegistry);
+            
+        Gauge.builder("review_producer_queue_depth", queueDepth, AtomicLong::get)
+            .description("Current depth of the processing queue")
+            .register(meterRegistry);
+    }
     
     /**
      * Record file processing metrics
@@ -23,20 +117,23 @@ public class MetricsService {
     public void recordFileProcessing(String sourceName, String fileName, int totalLines, int validLines, 
                                    int invalidLines, int emptyLines, long processingDurationMs) {
         
+        // Increment counters
+        filesProcessedCounter.increment();
+        linesProcessedCounter.increment(totalLines);
+        validReviewsCounter.increment(validLines);
+        invalidReviewsCounter.increment(invalidLines);
+        
+        // Update legacy counters
         totalFilesProcessed.incrementAndGet();
         totalLinesProcessed.addAndGet(totalLines);
         totalValidReviews.addAndGet(validLines);
         totalInvalidReviews.addAndGet(invalidLines);
         
+        // Record timing
+        fileProcessingTimer.record(processingDurationMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        
         log.info("Metrics recorded - File: {} from source: {}, Lines: {}/{}/{}/{}, Duration: {}ms", 
                 fileName, sourceName, totalLines, validLines, invalidLines, emptyLines, processingDurationMs);
-        
-        // TODO: Send to Prometheus/Grafana/other monitoring system
-        // Example Prometheus metrics:
-        // - review_files_processed_total{source="sourceName"} += 1
-        // - review_lines_processed_total{source="sourceName", type="valid"} += validLines
-        // - review_lines_processed_total{source="sourceName", type="invalid"} += invalidLines
-        // - review_processing_duration_seconds{source="sourceName", file="fileName"} = processingDurationMs / 1000.0
     }
     
     /**
@@ -45,14 +142,16 @@ public class MetricsService {
     public void recordSourceProcessing(String sourceName, int totalFilesFound, int filesToProcess, 
                                      int filesQueued, long processingDurationMs) {
         
+        // Increment counters
+        sourcesProcessedCounter.increment();
+        filesFoundCounter.increment(totalFilesFound);
+        filesQueuedCounter.increment(filesQueued);
+        
+        // Record timing
+        sourceProcessingTimer.record(processingDurationMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        
         log.info("Source metrics recorded - Source: {}, Files: {}/{}/{}, Duration: {}ms", 
                 sourceName, totalFilesFound, filesToProcess, filesQueued, processingDurationMs);
-        
-        // TODO: Send to monitoring system
-        // - review_sources_processed_total{source="sourceName"} += 1
-        // - review_files_found_total{source="sourceName"} += totalFilesFound
-        // - review_files_queued_total{source="sourceName"} += filesQueued
-        // - review_source_processing_duration_seconds{source="sourceName"} = processingDurationMs / 1000.0
     }
     
     /**
@@ -62,19 +161,20 @@ public class MetricsService {
                                  int totalFilesFound, int totalFilesToProcess, int totalFilesQueued, 
                                  long jobDurationMs) {
         
+        // Increment counters
+        jobExecutionsCounter.increment();
+        sourcesSuccessCounter.increment(successCount);
+        sourcesFailureCounter.increment(failureCount);
+        processingErrorsCounter.increment(failureCount);
+        
+        // Update legacy counter
         totalProcessingErrors.addAndGet(failureCount);
+        
+        // Record timing
+        jobExecutionTimer.record(jobDurationMs, java.util.concurrent.TimeUnit.MILLISECONDS);
         
         log.info("Job metrics recorded - Sources: {}/{}, Files: {}/{}/{}, Duration: {}ms", 
                 successCount, totalSources, totalFilesFound, totalFilesToProcess, totalFilesQueued, jobDurationMs);
-        
-        // TODO: Send to monitoring system
-        // - review_job_executions_total += 1
-        // - review_job_duration_seconds = jobDurationMs / 1000.0
-        // - review_sources_success_total += successCount
-        // - review_sources_failure_total += failureCount
-        // - review_files_found_total += totalFilesFound
-        // - review_files_processed_total += totalFilesToProcess
-        // - review_files_queued_total += totalFilesQueued
     }
     
     /**
@@ -82,15 +182,12 @@ public class MetricsService {
      */
     public void recordQueueMetrics(int activeThreads, int maxThreads, int queueDepth, int queueCapacity) {
         
+        // Update gauges
+        this.activeThreads.set(activeThreads);
+        this.queueDepth.set(queueDepth);
+        
         log.info("Queue metrics recorded - Threads: {}/{}, Queue: {}/{}", 
                 activeThreads, maxThreads, queueDepth, queueCapacity);
-        
-        // TODO: Send to monitoring system
-        // - review_active_threads{thread_pool="file_processing"} = activeThreads
-        // - review_thread_pool_capacity{thread_pool="file_processing"} = maxThreads
-        // - review_queue_depth{queue="file_processing"} = queueDepth
-        // - review_queue_capacity{queue="file_processing"} = queueCapacity
-        // - review_queue_utilization{queue="file_processing"} = (double) queueDepth / queueCapacity
     }
     
     /**

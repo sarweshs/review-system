@@ -128,3 +128,47 @@ MIT
 docker-compose down -v
 docker-compose build --no-cache
 docker-compose up -d
+
+## Connect to kafka running on port 9092
+```sh
+docker run -d -p 6060:8080 \
+  -e KAFKA_CLUSTERS_0_NAME=local \
+  -e KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=host.docker.internal:9092 \
+  provectuslabs/kafka-ui
+  
+ docker run -p 6060:8080 \
+  -e KAFKA_BROKERS=host.docker.internal:9092 \
+  docker.redpanda.com/redpandadata/console:latest
+# If above doesn't work, try this:
+docker network create kafka-net
+
+docker network connect kafka-net kafka  # if not already in that network
+
+docker run -d -p 6060:8080 \
+  --network kafka-net \
+  -e KAFKA_BROKERS=kafka:29092 \
+  -e CONSOLE_AUTHENTICATION_ENABLED=false \
+  docker.redpanda.com/redpandadata/console:latest
+# If above doesn't work, try this:
+docker network create kafka-net  # if not already created
+
+docker network connect kafka-net kafka  # attach kafka container if needed
+
+docker run -d -p 6060:8080 --network kafka-net \
+  -e AKHQ_CONFIGURATION='
+akhq:
+  connections:
+    my-cluster:
+      properties:
+        bootstrap.servers: "kafka:29092"
+' \
+  tchiotludo/akhq
+
+# Reset KAFKA topic
+./kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+./kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
+     --group review-consumer-group \
+     --topic bad_review_records \
+     --reset-offsets --to-earliest --execute
+````

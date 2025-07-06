@@ -1,5 +1,8 @@
 package com.reviewconsumer.service;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -12,43 +15,70 @@ public class MetricsService {
     
     private static final Logger logger = LoggerFactory.getLogger(MetricsService.class);
     
-    private final AtomicLong processedReviews = new AtomicLong(0);
-    private final AtomicLong badReviews = new AtomicLong(0);
-    private final AtomicLong errorCount = new AtomicLong(0);
+    private final Counter processedReviewsCounter;
+    private final Counter badReviewsCounter;
+    private final Counter errorCounter;
+    private final Timer processingTimer;
     private final AtomicLong totalProcessingTime = new AtomicLong(0);
     
     private final Instant startTime = Instant.now();
     
+    public MetricsService(MeterRegistry meterRegistry) {
+        this.processedReviewsCounter = Counter.builder("review_consumer_processed_reviews_total")
+            .description("Total number of reviews processed successfully")
+            .register(meterRegistry);
+            
+        this.badReviewsCounter = Counter.builder("review_consumer_bad_reviews_total")
+            .description("Total number of bad reviews processed")
+            .register(meterRegistry);
+            
+        this.errorCounter = Counter.builder("review_consumer_errors_total")
+            .description("Total number of processing errors")
+            .register(meterRegistry);
+            
+        this.processingTimer = Timer.builder("review_consumer_processing_duration")
+            .description("Time taken to process reviews")
+            .register(meterRegistry);
+    }
+    
     public void incrementProcessedReviews() {
-        long count = processedReviews.incrementAndGet();
-        logger.debug("Incremented processed reviews count to: {}", count);
+        processedReviewsCounter.increment();
+        logger.debug("Incremented processed reviews counter");
     }
     
     public void incrementBadReviews() {
-        long count = badReviews.incrementAndGet();
-        logger.debug("Incremented bad reviews count to: {}", count);
+        badReviewsCounter.increment();
+        logger.debug("Incremented bad reviews counter");
     }
     
     public void incrementErrorCount() {
-        long count = errorCount.incrementAndGet();
-        logger.debug("Incremented error count to: {}", count);
+        errorCounter.increment();
+        logger.debug("Incremented error counter");
+    }
+    
+    public Timer.Sample startProcessingTimer() {
+        return Timer.start();
+    }
+    
+    public void stopProcessingTimer(Timer.Sample sample) {
+        sample.stop(processingTimer);
     }
     
     public void addProcessingTime(long processingTimeMs) {
-        long total = totalProcessingTime.addAndGet(processingTimeMs);
-        logger.debug("Added processing time: {}ms, total: {}ms", processingTimeMs, total);
+        totalProcessingTime.addAndGet(processingTimeMs);
+        logger.debug("Added processing time: {}ms, total: {}ms", processingTimeMs, totalProcessingTime.get());
     }
     
     public long getProcessedReviews() {
-        return processedReviews.get();
+        return (long) processedReviewsCounter.count();
     }
     
     public long getBadReviews() {
-        return badReviews.get();
+        return (long) badReviewsCounter.count();
     }
     
     public long getErrorCount() {
-        return errorCount.get();
+        return (long) errorCounter.count();
     }
     
     public long getTotalProcessingTime() {
@@ -56,7 +86,7 @@ public class MetricsService {
     }
     
     public double getAverageProcessingTime() {
-        long processed = processedReviews.get();
+        long processed = getProcessedReviews();
         if (processed == 0) {
             return 0.0;
         }
@@ -76,14 +106,14 @@ public class MetricsService {
         if (uptime == 0) {
             return 0.0;
         }
-        return (double) processedReviews.get() / uptime;
+        return (double) getProcessedReviews() / uptime;
     }
     
     public double getErrorRate() {
-        long total = processedReviews.get() + badReviews.get();
+        long total = getProcessedReviews() + getBadReviews();
         if (total == 0) {
             return 0.0;
         }
-        return (double) errorCount.get() / total;
+        return (double) getErrorCount() / total;
     }
 } 

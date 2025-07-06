@@ -2,6 +2,8 @@ package com.reviewconsumer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reviewcore.model.EntityReview;
+import com.reviewcore.model.BadReviewRecord;
+import com.reviewconsumer.repository.BadReviewRecordRepository;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,14 +25,17 @@ public class ReviewConsumerService {
     
     private final ObjectMapper objectMapper;
     private final MetricsService metricsService;
+    private final BadReviewRecordRepository badReviewRecordRepository;
     
     private final AtomicLong processedCount = new AtomicLong(0);
     private final AtomicLong errorCount = new AtomicLong(0);
     
     @Autowired
-    public ReviewConsumerService(ObjectMapper objectMapper, MetricsService metricsService) {
+    public ReviewConsumerService(ObjectMapper objectMapper, MetricsService metricsService, 
+                               BadReviewRecordRepository badReviewRecordRepository) {
         this.objectMapper = objectMapper;
         this.metricsService = metricsService;
+        this.badReviewRecordRepository = badReviewRecordRepository;
     }
     
     @KafkaListener(
@@ -134,20 +139,29 @@ public class ReviewConsumerService {
         }
     }
     
-    private void processBadReview(String badReviewJson) {
-        // TODO: Implement bad review processing logic
-        // This could include:
-        // - Storing in database
-        // - Alerting data quality issues
-        // - Logging for analysis
-        
-        logger.info("Processing bad review record: {}", badReviewJson);
-        
-        // Simulate some processing time
+    private void processBadReview(com.reviewcore.dto.ReviewMessage badReviewMessage) {
         try {
-            Thread.sleep(5);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            // Convert the ReviewMessage to JSON string
+            String jsonData = objectMapper.writeValueAsString(badReviewMessage);
+            
+            // Create BadReviewRecord entity
+            BadReviewRecord badReviewRecord = new BadReviewRecord(
+                jsonData,
+                badReviewMessage.getPlatform(),
+                "Invalid review data structure or validation failure"
+            );
+            
+            // Save to database
+            BadReviewRecord savedRecord = badReviewRecordRepository.save(badReviewRecord);
+            
+            logger.info("Stored bad review record in database with ID: {}", savedRecord.getId());
+            
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            logger.error("Failed to serialize bad review message to JSON: {}", badReviewMessage, e);
+            throw new RuntimeException("Failed to serialize bad review message", e);
+        } catch (Exception e) {
+            logger.error("Failed to store bad review record in database: {}", badReviewMessage, e);
+            throw e; // Re-throw to trigger error handling
         }
     }
     

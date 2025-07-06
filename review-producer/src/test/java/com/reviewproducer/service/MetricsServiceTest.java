@@ -1,5 +1,6 @@
 package com.reviewproducer.service;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -7,10 +8,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class MetricsServiceTest {
     
     private MetricsService metricsService;
+    private SimpleMeterRegistry meterRegistry;
     
     @BeforeEach
     void setUp() {
-        metricsService = new MetricsService();
+        meterRegistry = new SimpleMeterRegistry();
+        metricsService = new MetricsService(meterRegistry);
     }
     
     @Test
