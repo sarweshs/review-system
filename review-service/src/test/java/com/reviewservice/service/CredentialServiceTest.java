@@ -8,14 +8,27 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import static org.junit.jupiter.api.Assertions.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mockito;
+
+import java.util.Map;
+
+import static org.mockito.Mockito.*;
 
 @SpringBootTest(properties = "spring.profiles.active=test")
 @Import(TestConfig.class)
 @Disabled("Disabled due to Flyway/JSONB incompatibility in H2")
 public class CredentialServiceTest {
     
-    @Autowired
     private CredentialService credentialService;
+    private EncryptionService encryptionService;
+
+    @BeforeEach
+    void setup() {
+        encryptionService = Mockito.mock(EncryptionService.class);
+        credentialService = new CredentialService(encryptionService);
+    }
     
     @Test
     public void testBasicCredentialCreation() {
@@ -64,5 +77,67 @@ public class CredentialServiceTest {
         
         ApiKeyCredential emptyApiKey = new ApiKeyCredential("", "");
         assertFalse(credentialService.validateCredential(emptyApiKey));
+    }
+
+    @Test
+    void testCreateAndValidateBasicCredential() {
+        BasicCredential cred = credentialService.createBasicCredential("user", "pass");
+        assertEquals("user", cred.getUsername());
+        assertTrue(credentialService.validateCredential(cred));
+        BasicCredential bad = credentialService.createBasicCredential("", "");
+        assertFalse(credentialService.validateCredential(bad));
+    }
+
+    @Test
+    void testCreateAndValidateApiKeyCredential() {
+        ApiKeyCredential cred = credentialService.createApiKeyCredential("key", "header");
+        assertEquals("key", cred.getApiKey());
+        assertTrue(credentialService.validateCredential(cred));
+        ApiKeyCredential bad = credentialService.createApiKeyCredential("", "header");
+        assertFalse(credentialService.validateCredential(bad));
+    }
+
+    @Test
+    void testCreateAndValidateOAuthCredential() {
+        OAuthCredential cred = credentialService.createOAuthCredential("id", "secret", "token", "refresh", "url");
+        assertEquals("id", cred.getClientId());
+        assertTrue(credentialService.validateCredential(cred));
+        OAuthCredential bad = credentialService.createOAuthCredential("", "", "", "", "");
+        assertFalse(credentialService.validateCredential(bad));
+    }
+
+    @Test
+    void testCreateAndValidateAwsCredential() {
+        AwsCredential cred = credentialService.createAwsCredential("id", "secret");
+        assertEquals("id", cred.getAccessKeyId());
+        assertTrue(credentialService.validateCredential(cred));
+        AwsCredential bad = credentialService.createAwsCredential("", "");
+        assertFalse(credentialService.validateCredential(bad));
+    }
+
+    @Test
+    void testGetAuthHeaders_basic() {
+        BasicCredential cred = credentialService.createBasicCredential("user", "pass");
+        Map<String, String> headers = credentialService.getAuthHeaders(cred);
+        assertTrue(headers.containsKey("Authorization"));
+    }
+
+    @Test
+    void testGetCredentialType() {
+        BasicCredential cred = credentialService.createBasicCredential("user", "pass");
+        assertEquals("basic", credentialService.getCredentialType(cred));
+        assertNull(credentialService.getCredentialType(null));
+    }
+
+    @Test
+    void testEncryptDecryptCredential() throws Exception {
+        BasicCredential cred = credentialService.createBasicCredential("user", "pass");
+        when(encryptionService.encrypt(anyString())).thenReturn("encrypted");
+        when(encryptionService.decrypt(anyString())).thenReturn("{\"type\":\"basic\",\"username\":\"user\",\"password\":\"pass\"}");
+        String encrypted = credentialService.encryptCredential(cred);
+        assertEquals("encrypted", encrypted);
+        Credential decrypted = credentialService.decryptCredential("encrypted");
+        assertTrue(decrypted instanceof BasicCredential);
+        assertEquals("user", ((BasicCredential) decrypted).getUsername());
     }
 } 

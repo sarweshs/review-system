@@ -12,10 +12,13 @@ import java.util.HashMap;
 @Service
 public class CredentialService {
     
-    @Autowired
-    private EncryptionService encryptionService;
-    
+    private final EncryptionService encryptionService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    
+    @Autowired
+    public CredentialService(EncryptionService encryptionService) {
+        this.encryptionService = encryptionService;
+    }
     
     /**
      * Creates a BasicCredential for username/password authentication
