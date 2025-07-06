@@ -18,8 +18,8 @@ class ReviewValidationServiceTest {
     void testValidReview() {
         String validReview = """
             {
-                "hotel_id": "12345",
-                "hotel_name": "Test Hotel",
+                "hotelId": "12345",
+                "hotelName": "Test Hotel",
                 "platform": "Booking.com",
                 "rating": 4.5,
                 "review_text": "Great hotel!"
@@ -35,8 +35,8 @@ class ReviewValidationServiceTest {
     void testNullHotelId() {
         String invalidReview = """
             {
-                "hotel_id": null,
-                "hotel_name": "Test Hotel",
+                "hotelId": null,
+                "hotelName": "Test Hotel",
                 "platform": "Agoda",
                 "rating": 4.0
             }
@@ -51,8 +51,8 @@ class ReviewValidationServiceTest {
     void testNullHotelName() {
         String invalidReview = """
             {
-                "hotel_id": "12345",
-                "hotel_name": null,
+                "hotelId": "12345",
+                "hotelName": null,
                 "platform": "Expedia",
                 "rating": 3.5
             }
@@ -67,7 +67,7 @@ class ReviewValidationServiceTest {
     void testMissingHotelId() {
         String invalidReview = """
             {
-                "hotel_name": "Test Hotel",
+                "hotelName": "Test Hotel",
                 "platform": "Booking.com",
                 "rating": 4.5
             }
@@ -82,7 +82,7 @@ class ReviewValidationServiceTest {
     void testMissingHotelName() {
         String invalidReview = """
             {
-                "hotel_id": "12345",
+                "hotelId": "12345",
                 "platform": "Agoda",
                 "rating": 4.0
             }
@@ -106,8 +106,8 @@ class ReviewValidationServiceTest {
     void testExtractPlatform() {
         String reviewWithPlatform = """
             {
-                "hotel_id": "12345",
-                "hotel_name": "Test Hotel",
+                "hotelId": "12345",
+                "hotelName": "Test Hotel",
                 "platform": "Booking.com",
                 "rating": 4.5
             }
@@ -121,8 +121,8 @@ class ReviewValidationServiceTest {
     void testExtractPlatformNull() {
         String reviewWithoutPlatform = """
             {
-                "hotel_id": "12345",
-                "hotel_name": "Test Hotel",
+                "hotelId": "12345",
+                "hotelName": "Test Hotel",
                 "rating": 4.5
             }
             """;

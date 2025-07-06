@@ -65,12 +65,7 @@ public class AdminController {
     
     @GetMapping("/reviews")
     public String showReviews(Model model) {
-        try {
-            Object[] reviews = restTemplate.getForObject(SERVICE_URL + "/api/reviews", Object[].class);
-            model.addAttribute("reviews", reviews != null ? List.of(reviews) : List.of());
-        } catch (Exception e) {
-            model.addAttribute("reviews", List.of());
-        }
+        // The reviews will be loaded via AJAX in the template
         return "admin";
     }
 

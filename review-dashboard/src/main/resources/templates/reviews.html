@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Reviews Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-card.bad {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .filters {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        .filter-group select, .filter-group input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-width: 120px;
+            background: #fff;
+        }
+        
+        .filter-group select:focus, .filter-group input:focus {
+            outline: 2px solid #007bff;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-secondary {
+            background-color: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #e2e6ea;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            border-bottom-color: #007bff;
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        .tab:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .reviews-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .reviews-table th,
+        .reviews-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .reviews-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .reviews-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .rating {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        .rating.excellent { background-color: #28a745; color: white; }
+        .rating.good { background-color: #17a2b8; color: white; }
+        .rating.fair { background-color: #ffc107; color: black; }
+        .rating.poor { background-color: #dc3545; color: white; }
+        
+        .platform-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .platform-agoda { background-color: #e3f2fd; color: #1976d2; }
+        .platform-booking { background-color: #f3e5f5; color: #7b1fa2; }
+        .platform-expedia { background-color: #e8f5e8; color: #388e3c; }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            font-size: 1em;
+        }
+        
+        .pagination .page-size-group {
+            margin-left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .pagination .page-info {
+            margin-left: 20px;
+            color: #666;
+            font-size: 0.95em;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .review-comment {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .review-comment.expanded {
+            white-space: normal;
+            max-width: none;
+        }
+        
+        .expand-btn {
+            color: #007bff;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Reviews Dashboard</h1>
+            <div>
+                <button class="btn btn-secondary" onclick="refreshData()">Refresh</button>
+            </div>
+        </div>
+        
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalGoodReviews">-</div>
+                <div class="stat-label">Good Reviews</div>
+            </div>
+            <div class="stat-card bad">
+                <div class="stat-number" id="totalBadReviews">-</div>
+                <div class="stat-label">Bad Reviews</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalReviews">-</div>
+                <div class="stat-label">Total Reviews</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgRating">-</div>
+                <div class="stat-label">Avg Rating</div>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="platformFilter">Platform</label>
+                    <select id="platformFilter">
+                        <option value="">All Platforms</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="ratingFilter">Rating</label>
+                    <select id="ratingFilter">
+                        <option value="">All Ratings</option>
+                        <option value="9-10">9-10 (Excellent)</option>
+                        <option value="7-8">7-8 (Good)</option>
+                        <option value="5-6">5-6 (Fair)</option>
+                        <option value="1-4">1-4 (Poor)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="searchFilter">Search</label>
+                    <input type="text" id="searchFilter" placeholder="Search reviews...">
+                </div>
+                <div class="filter-group">
+                    <label for="pageSizeFilter">Page Size</label>
+                    <select id="pageSizeFilter" onchange="changePageSize()">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('good')">Good Reviews</div>
+            <div class="tab" onclick="switchTab('bad')">Bad Reviews</div>
+        </div>
+        
+        <!-- Good Reviews Tab -->
+        <div id="good-reviews" class="tab-content active">
+            <div id="good-reviews-loading" class="loading">Loading good reviews...</div>
+            <div id="good-reviews-error" class="error" style="display: none;"></div>
+            <table id="good-reviews-table" class="reviews-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Review ID</th>
+                        <th>Hotel ID</th>
+                        <th>Platform</th>
+                        <th>Rating</th>
+                        <th>Title</th>
+                        <th>Comment</th>
+                        <th>Review Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="good-reviews-tbody">
+                </tbody>
+            </table>
+            <div id="good-reviews-pagination" class="pagination" style="display: none;"></div>
+        </div>
+        
+        <!-- Bad Reviews Tab -->
+        <div id="bad-reviews" class="tab-content">
+            <div id="bad-reviews-loading" class="loading">Loading bad reviews...</div>
+            <div id="bad-reviews-error" class="error" style="display: none;"></div>
+            <table id="bad-reviews-table" class="reviews-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Platform</th>
+                        <th>Reason</th>
+                        <th>JSON Data</th>
+                        <th>Created Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bad-reviews-tbody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'good';
+        let currentPage = 0;
+        let pageSize = 20;
+        let totalPages = 0;
+        let totalItems = 0;
+        let platforms = [];
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSummary();
+            loadPlatforms();
+            pageSize = parseInt(document.getElementById('pageSizeFilter').value);
+            loadGoodReviews();
+            loadBadReviews();
+        });
+        
+        function loadPlatforms() {
+            fetch('/api/reviews/statistics')
+                .then(response => response.json())
+                .then(stats => {
+                    platforms = stats.platforms || [];
+                    const platformFilter = document.getElementById('platformFilter');
+                    platformFilter.innerHTML = '<option value="">All Platforms</option>';
+                    platforms.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p;
+                        opt.textContent = p;
+                        platformFilter.appendChild(opt);
+                    });
+                });
+        }
+        
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab styling
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + '-reviews').classList.add('active');
+        }
+        
+        function loadSummary() {
+            fetch('/api/reviews/summary')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('totalGoodReviews').textContent = data.totalGoodReviews || 0;
+                    document.getElementById('totalBadReviews').textContent = data.totalBadReviews || 0;
+                    document.getElementById('totalReviews').textContent = (data.totalGoodReviews || 0) + (data.totalBadReviews || 0);
+                    
+                    // Load average rating
+                    fetch('/api/reviews/statistics')
+                        .then(response => response.json())
+                        .then(stats => {
+                            document.getElementById('avgRating').textContent = (stats.averageRating || 0).toFixed(1);
+                        })
+                        .catch(error => {
+                            console.error('Error loading statistics:', error);
+                            document.getElementById('avgRating').textContent = 'N/A';
+                        });
+                })
+                .catch(error => {
+                    console.error('Error loading summary:', error);
+                });
+        }
+        
+        function loadGoodReviews() {
+            const loading = document.getElementById('good-reviews-loading');
+            const error = document.getElementById('good-reviews-error');
+            const table = document.getElementById('good-reviews-table');
+            const pagination = document.getElementById('good-reviews-pagination');
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            table.style.display = 'none';
+            pagination.style.display = 'none';
+            
+            const platform = document.getElementById('platformFilter').value;
+            const rating = document.getElementById('ratingFilter').value;
+            const search = document.getElementById('searchFilter').value;
+            
+            let url = `/api/reviews?page=${currentPage}&size=${pageSize}`;
+            
+            if (platform) url += `&platform=${encodeURIComponent(platform)}`;
+            if (rating) {
+                const [min, max] = rating.split('-');
+                url += `&minRating=${min}&maxRating=${max}`;
+            }
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    
+                    if (data.reviews && data.reviews.length > 0) {
+                        displayGoodReviews(data.reviews);
+                        setupPagination(data);
+                        table.style.display = 'table';
+                        pagination.style.display = 'flex';
+                    } else {
+                        document.getElementById('good-reviews-tbody').innerHTML = 
+                            '<tr><td colspan="8" style="text-align: center; padding: 40px;">No good reviews found</td></tr>';
+                        table.style.display = 'table';
+                    }
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    error.style.display = 'block';
+                    error.textContent = 'Error loading good reviews: ' + error.message;
+                });
+        }
+        
+        function loadBadReviews() {
+            const loading = document.getElementById('bad-reviews-loading');
+            const error = document.getElementById('bad-reviews-error');
+            const table = document.getElementById('bad-reviews-table');
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            table.style.display = 'none';
+            
+            fetch('/api/reviews/bad')
+                .then(response => response.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    
+                    if (data && data.length > 0) {
+                        displayBadReviews(data);
+                        table.style.display = 'table';
+                    } else {
+                        document.getElementById('bad-reviews-tbody').innerHTML = 
+                            '<tr><td colspan="6" style="text-align: center; padding: 40px;">No bad reviews found</td></tr>';
+                        table.style.display = 'table';
+                    }
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    error.style.display = 'block';
+                    error.textContent = 'Error loading bad reviews: ' + error.message;
+                });
+        }
+        
+        function displayGoodReviews(reviews) {
+            const tbody = document.getElementById('good-reviews-tbody');
+            tbody.innerHTML = '';
+            
+            reviews.forEach(review => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${review.reviewId}</td>
+                    <td>${review.entityId}</td>
+                    <td><span class="platform-badge platform-${review.platform?.toLowerCase()}">${review.platform || 'N/A'}</span></td>
+                    <td><span class="rating ${getRatingClass(review.rating)}">${review.rating || 'N/A'}</span></td>
+                    <td>${review.reviewTitle || 'N/A'}</td>
+                    <td>
+                        <div class="review-comment" id="comment-${review.reviewId}">
+                            ${review.reviewComments || 'No comment'}
+                        </div>
+                        ${review.reviewComments && review.reviewComments.length > 100 ? 
+                            `<span class="expand-btn" onclick="toggleComment(${review.reviewId})">Show more</span>` : ''}
+                    </td>
+                    <td>${formatDate(review.reviewDate)}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="viewReviewDetails(${review.reviewId})">View</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        function displayBadReviews(reviews) {
+            const tbody = document.getElementById('bad-reviews-tbody');
+            tbody.innerHTML = '';
+            
+            reviews.forEach(review => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${review.id}</td>
+                    <td><span class="platform-badge platform-${review.platform?.toLowerCase()}">${review.platform || 'N/A'}</span></td>
+                    <td><span class="rating poor">${review.reason}</span></td>
+                    <td>
+                        <div class="review-comment" id="bad-comment-${review.id}">
+                            ${truncateJson(review.jsonData)}
+                        </div>
+                        <span class="expand-btn" onclick="toggleBadComment(${review.id})">Show more</span>
+                    </td>
+                    <td>${formatDate(review.createdDate)}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="viewBadReviewDetails(${review.id})">View</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        function setupPagination(data) {
+            currentPage = data.currentPage;
+            totalPages = data.totalPages;
+            totalItems = data.totalItems;
+            
+            const pagination = document.getElementById('good-reviews-pagination');
+            pagination.innerHTML = '';
+            
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = 'Previous';
+            prevBtn.disabled = !data.hasPrevious;
+            prevBtn.onclick = () => {
+                if (currentPage > 0) {
+                    currentPage--;
+                    loadGoodReviews();
+                }
+            };
+            pagination.appendChild(prevBtn);
+            
+            // Page numbers
+            const startPage = Math.max(0, currentPage - 2);
+            const endPage = Math.min(totalPages - 1, currentPage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i + 1;
+                pageBtn.className = i === currentPage ? 'current-page' : '';
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    loadGoodReviews();
+                };
+                pagination.appendChild(pageBtn);
+            }
+            
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = 'Next';
+            nextBtn.disabled = !data.hasNext;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages - 1) {
+                    currentPage++;
+                    loadGoodReviews();
+                }
+            };
+            pagination.appendChild(nextBtn);
+            
+            // Page size dropdown and info
+            const pageSizeGroup = document.createElement('span');
+            pageSizeGroup.className = 'page-size-group';
+            pageSizeGroup.innerHTML = `Page Size: <select id="pageSizeFilter2" onchange="changePageSizeFromPagination()">
+                <option value="10" ${pageSize===10?'selected':''}>10</option>
+                <option value="20" ${pageSize===20?'selected':''}>20</option>
+                <option value="50" ${pageSize===50?'selected':''}>50</option>
+                <option value="100" ${pageSize===100?'selected':''}>100</option>
+            </select>`;
+            pagination.appendChild(pageSizeGroup);
+            const pageInfo = document.createElement('span');
+            pageInfo.className = 'page-info';
+            pageInfo.textContent = `Page ${currentPage+1} of ${totalPages} | Total: ${totalItems}`;
+            pagination.appendChild(pageInfo);
+        }
+        
+        function applyFilters() {
+            currentPage = 0;
+            loadGoodReviews();
+        }
+        
+        function refreshData() {
+            loadSummary();
+            if (currentTab === 'good') {
+                loadGoodReviews();
+            } else {
+                loadBadReviews();
+            }
+        }
+        
+        function getRatingClass(rating) {
+            if (!rating) return 'fair';
+            if (rating >= 9) return 'excellent';
+            if (rating >= 7) return 'good';
+            if (rating >= 5) return 'fair';
+            return 'poor';
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            try {
+                return new Date(dateString).toLocaleDateString();
+            } catch (e) {
+                return dateString;
+            }
+        }
+        
+        function truncateJson(jsonString) {
+            if (!jsonString) return 'N/A';
+            return jsonString.length > 100 ? jsonString.substring(0, 100) + '...' : jsonString;
+        }
+        
+        function toggleComment(reviewId) {
+            const comment = document.getElementById(`comment-${reviewId}`);
+            const expandBtn = comment.nextElementSibling;
+            
+            if (comment.classList.contains('expanded')) {
+                comment.classList.remove('expanded');
+                expandBtn.textContent = 'Show more';
+            } else {
+                comment.classList.add('expanded');
+                expandBtn.textContent = 'Show less';
+            }
+        }
+        
+        function toggleBadComment(reviewId) {
+            const comment = document.getElementById(`bad-comment-${reviewId}`);
+            const expandBtn = comment.nextElementSibling;
+            
+            if (comment.classList.contains('expanded')) {
+                comment.classList.remove('expanded');
+                expandBtn.textContent = 'Show more';
+            } else {
+                comment.classList.add('expanded');
+                expandBtn.textContent = 'Show less';
+            }
+        }
+        
+        function viewReviewDetails(reviewId) {
+            // TODO: Implement review details modal
+            alert('View details for review ID: ' + reviewId);
+        }
+        
+        function viewBadReviewDetails(reviewId) {
+            // TODO: Implement bad review details modal
+            alert('View details for bad review ID: ' + reviewId);
+        }
+        
+        function changePageSize() {
+            pageSize = parseInt(document.getElementById('pageSizeFilter').value);
+            currentPage = 0;
+            loadGoodReviews();
+        }
+        
+        function changePageSizeFromPagination() {
+            pageSize = parseInt(document.getElementById('pageSizeFilter2').value);
+            document.getElementById('pageSizeFilter').value = pageSize;
+            currentPage = 0;
+            loadGoodReviews();
+        }
+    </script>
+</body>
+</html> 

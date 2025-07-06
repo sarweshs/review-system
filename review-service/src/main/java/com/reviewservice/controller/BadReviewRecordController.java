@@ -4,6 +4,7 @@ import com.reviewcore.model.BadReviewRecord;
 import com.reviewservice.service.BadReviewRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,9 +26,12 @@ public class BadReviewRecordController {
      */
     @GetMapping
     public ResponseEntity<List<BadReviewRecord>> getAllBadRecords() {
+        return ResponseEntity.ok(getAllBadRecordsBody());
+    }
+    @Cacheable(value = "bad-reviews", key = "'all_bad'")
+    public List<BadReviewRecord> getAllBadRecordsBody() {
         log.info("Fetching all bad review records");
-        List<BadReviewRecord> records = badReviewRecordService.getAllBadRecords();
-        return ResponseEntity.ok(records);
+        return badReviewRecordService.getAllBadRecords();
     }
     
     /**
@@ -35,9 +39,12 @@ public class BadReviewRecordController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<BadReviewRecord> getBadRecordById(@PathVariable Long id) {
+        return ResponseEntity.ok(getBadRecordByIdBody(id));
+    }
+    @Cacheable(value = "bad-reviews", key = "'bad_id_' + #id")
+    public BadReviewRecord getBadRecordByIdBody(Long id) {
         log.info("Fetching bad review record with id: {}", id);
-        BadReviewRecord record = badReviewRecordService.getBadRecordById(id);
-        return ResponseEntity.ok(record);
+        return badReviewRecordService.getBadRecordById(id);
     }
     
     /**
@@ -45,9 +52,12 @@ public class BadReviewRecordController {
      */
     @GetMapping("/platform/{platform}")
     public ResponseEntity<List<BadReviewRecord>> getBadRecordsByPlatform(@PathVariable String platform) {
+        return ResponseEntity.ok(getBadRecordsByPlatformBody(platform));
+    }
+    @Cacheable(value = "bad-reviews", key = "'bad_platform_' + #platform")
+    public List<BadReviewRecord> getBadRecordsByPlatformBody(String platform) {
         log.info("Fetching bad review records for platform: {}", platform);
-        List<BadReviewRecord> records = badReviewRecordService.getBadRecordsByPlatform(platform);
-        return ResponseEntity.ok(records);
+        return badReviewRecordService.getBadRecordsByPlatform(platform);
     }
     
     /**
@@ -55,9 +65,12 @@ public class BadReviewRecordController {
      */
     @GetMapping("/reason")
     public ResponseEntity<List<BadReviewRecord>> getBadRecordsByReason(@RequestParam String reason) {
+        return ResponseEntity.ok(getBadRecordsByReasonBody(reason));
+    }
+    @Cacheable(value = "bad-reviews", key = "'bad_reason_' + #reason")
+    public List<BadReviewRecord> getBadRecordsByReasonBody(String reason) {
         log.info("Fetching bad review records with reason containing: {}", reason);
-        List<BadReviewRecord> records = badReviewRecordService.getBadRecordsByReason(reason);
-        return ResponseEntity.ok(records);
+        return badReviewRecordService.getBadRecordsByReason(reason);
     }
     
     /**
@@ -66,9 +79,12 @@ public class BadReviewRecordController {
     @GetMapping("/after-date")
     public ResponseEntity<List<BadReviewRecord>> getBadRecordsAfterDate(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date) {
+        return ResponseEntity.ok(getBadRecordsAfterDateBody(date));
+    }
+    @Cacheable(value = "bad-reviews", key = "'bad_after_date_' + #date")
+    public List<BadReviewRecord> getBadRecordsAfterDateBody(LocalDateTime date) {
         log.info("Fetching bad review records created after: {}", date);
-        List<BadReviewRecord> records = badReviewRecordService.getBadRecordsAfterDate(date);
-        return ResponseEntity.ok(records);
+        return badReviewRecordService.getBadRecordsAfterDate(date);
     }
     
     /**
@@ -76,9 +92,12 @@ public class BadReviewRecordController {
      */
     @GetMapping("/recent")
     public ResponseEntity<List<BadReviewRecord>> getRecentBadRecords() {
+        return ResponseEntity.ok(getRecentBadRecordsBody());
+    }
+    @Cacheable(value = "bad-reviews", key = "'bad_recent'")
+    public List<BadReviewRecord> getRecentBadRecordsBody() {
         log.info("Fetching recent bad review records");
-        List<BadReviewRecord> records = badReviewRecordService.getRecentBadRecords();
-        return ResponseEntity.ok(records);
+        return badReviewRecordService.getRecentBadRecords();
     }
     
     /**
@@ -86,9 +105,12 @@ public class BadReviewRecordController {
      */
     @GetMapping("/statistics")
     public ResponseEntity<Map<String, Object>> getStatistics() {
+        return ResponseEntity.ok(getStatisticsBody());
+    }
+    @Cacheable(value = "review-stats", key = "'bad_statistics'")
+    public Map<String, Object> getStatisticsBody() {
         log.info("Fetching bad review records statistics");
-        Map<String, Object> stats = badReviewRecordService.getStatistics();
-        return ResponseEntity.ok(stats);
+        return badReviewRecordService.getStatistics();
     }
     
     /**
@@ -96,9 +118,12 @@ public class BadReviewRecordController {
      */
     @GetMapping("/statistics/platform/{platform}")
     public ResponseEntity<Map<String, Object>> getStatisticsByPlatform(@PathVariable String platform) {
+        return ResponseEntity.ok(getStatisticsByPlatformBody(platform));
+    }
+    @Cacheable(value = "review-stats", key = "'bad_statistics_platform_' + #platform")
+    public Map<String, Object> getStatisticsByPlatformBody(String platform) {
         log.info("Fetching bad review records statistics for platform: {}", platform);
-        Map<String, Object> stats = badReviewRecordService.getStatisticsByPlatform(platform);
-        return ResponseEntity.ok(stats);
+        return badReviewRecordService.getStatisticsByPlatform(platform);
     }
     
     /**

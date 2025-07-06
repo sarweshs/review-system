@@ -1,0 +1,767 @@
+{
+	"info": {
+		"_postman_id": "review-system-v2-2",
+		"name": "Review System API v2.2",
+		"description": "Updated API collection with clean separation between good reviews and bad review records",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12345678"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Good Reviews",
+			"item": [
+				{
+					"name": "Get All Reviews (Paginated)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews?page=0&size=20&sortBy=reviewId&sortDir=desc",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0",
+									"description": "Page number (0-based)"
+								},
+								{
+									"key": "size",
+									"value": "20",
+									"description": "Number of items per page"
+								},
+								{
+									"key": "sortBy",
+									"value": "reviewId",
+									"description": "Sort field"
+								},
+								{
+									"key": "sortDir",
+									"value": "desc",
+									"description": "Sort direction (asc/desc)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Reviews by Platform",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews/platform/Booking.com",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews",
+								"platform",
+								"Booking.com"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Reviews by Entity ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews/entity/12345",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews",
+								"entity",
+								"12345"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Reviews by Rating Range",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews/rating?minRating=7.0&maxRating=9.0",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews",
+								"rating"
+							],
+							"query": [
+								{
+									"key": "minRating",
+									"value": "7.0",
+									"description": "Minimum rating"
+								},
+								{
+									"key": "maxRating",
+									"value": "9.0",
+									"description": "Maximum rating"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Review by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Good Review Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews/statistics",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews",
+								"statistics"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bad Review Records",
+			"item": [
+				{
+					"name": "Get All Bad Review Records",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bad Review Record by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bad Records by Platform",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/platform/Booking.com",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"platform",
+								"Booking.com"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bad Records by Reason",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/reason?reason=HOTEL_ID_NULL",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"reason"
+							],
+							"query": [
+								{
+									"key": "reason",
+									"value": "HOTEL_ID_NULL",
+									"description": "Reason for bad record"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bad Records After Date",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/after-date?date=2024-01-01T00:00:00",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"after-date"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2024-01-01T00:00:00",
+									"description": "ISO date time format"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Recent Bad Records",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/recent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"recent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bad Review Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/statistics",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"statistics"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bad Review Statistics by Platform",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/statistics/platform/Booking.com",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"statistics",
+								"platform",
+								"Booking.com"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Bad Review Record",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonData\": \"{\\\"hotelId\\\": 12345, \\\"platform\\\": \\\"Booking.com\\\"}\",\n  \"platform\": \"Booking.com\",\n  \"reason\": \"INVALID_RATING_FORMAT\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Bad Review Record",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cleanup Old Bad Records",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bad-review-records/cleanup?cutoffDate=2024-01-01T00:00:00",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bad-review-records",
+								"cleanup"
+							],
+							"query": [
+								{
+									"key": "cutoffDate",
+									"value": "2024-01-01T00:00:00",
+									"description": "ISO date time format"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Combined Summary",
+			"item": [
+				{
+					"name": "Get Combined Review Summary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reviews/summary",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reviews",
+								"summary"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Review Sources",
+			"item": [
+				{
+					"name": "Get All Sources",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/sources",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"sources"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Source (Basic Auth)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Source\",\n  \"uri\": \"https://api.example.com/reviews\",\n  \"credentialType\": \"basic\",\n  \"username\": \"user123\",\n  \"password\": \"pass123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/sources",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"sources"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Source (API Key)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"API Key Source\",\n  \"uri\": \"https://api.example.com/reviews\",\n  \"credentialType\": \"apikey\",\n  \"apiKey\": \"your-api-key-here\",\n  \"headerName\": \"X-API-Key\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/sources",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"sources"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Active Sources",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/sources/admin/source/update-active?activeIds=1&activeIds=2",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"sources",
+								"admin",
+								"source",
+								"update-active"
+							],
+							"query": [
+								{
+									"key": "activeIds",
+									"value": "1",
+									"description": "Active source IDs"
+								},
+								{
+									"key": "activeIds",
+									"value": "2",
+									"description": "Active source IDs"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Source",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/sources/admin/source/delete?id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"sources",
+								"admin",
+								"source",
+								"delete"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "Source ID to delete"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Cache Management",
+			"item": [
+				{
+					"name": "Get Cache Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/cache/info",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"cache",
+								"info"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invalidate All Caches",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/cache/invalidate-all",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"cache",
+								"invalidate-all"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invalidate Reviews Cache",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/cache/invalidate-reviews",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"cache",
+								"invalidate-reviews"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invalidate Bad Reviews Cache",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/cache/invalidate-bad-reviews",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"cache",
+								"invalidate-bad-reviews"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invalidate Statistics Cache",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/cache/invalidate-stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"cache",
+								"invalidate-stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invalidate Specific Cache",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/cache/invalidate/reviews",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"cache",
+								"invalidate",
+								"reviews"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cache Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/cache/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"cache",
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:7070",
+			"type": "string"
+		}
+	]
+} 

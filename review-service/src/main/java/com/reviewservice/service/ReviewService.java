@@ -16,7 +16,7 @@ public class ReviewService {
 
     public void processReview(EntityReview review) {
         // Idempotency: check if review already exists
-        if (!reviewRepository.existsByReviewId(review.getReviewId().toString())) {
+        if (!reviewRepository.existsByReviewId(review.getReviewId())) {
             reviewRepository.save(review);
         }
     }

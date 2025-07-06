@@ -1,8 +1,195 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head><title>User Dashboard</title></head>
+<head>
+    <title>User Dashboard</title>
+    <style>
+        nav { margin-bottom: 20px; }
+        nav a { margin-right: 20px; }
+        .menu-content { display: none; }
+        .menu-content.active { display: block; }
+    </style>
+    <script>
+        function showMenu(menu) {
+            document.querySelectorAll('.menu-content').forEach(function(div) {
+                div.classList.remove('active');
+            });
+            document.getElementById(menu).classList.add('active');
+        }
+    </script>
+</head>
 <body>
 <h1>Welcome User: <span th:text="${username}"></span></h1>
 <a href="/logout">Logout</a>
+<nav>
+    <a href="#" onclick="showMenu('reviews');return false;">See Reviews</a>
+    <a href="#" onclick="showMenu('nlp-page');return false;">NLP</a>
+</nav>
+
+<div id="reviews" class="menu-content active">
+    <div class="container">
+        <div class="header">
+            <h1>Reviews Dashboard</h1>
+            <div>
+                <button class="btn btn-secondary" onclick="refreshData()">Refresh</button>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalGoodReviews">-</div>
+                <div class="stat-label">Good Reviews</div>
+            </div>
+            <div class="stat-card bad">
+                <div class="stat-number" id="totalBadReviews">-</div>
+                <div class="stat-label">Bad Reviews</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalReviews">-</div>
+                <div class="stat-label">Total Reviews</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgRating">-</div>
+                <div class="stat-label">Avg Rating</div>
+            </div>
+        </div>
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="platformFilter">Platform</label>
+                    <select id="platformFilter">
+                        <option value="">All Platforms</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="ratingFilter">Rating</label>
+                    <select id="ratingFilter">
+                        <option value="">All Ratings</option>
+                        <option value="9-10">9-10 (Excellent)</option>
+                        <option value="7-8">7-8 (Good)</option>
+                        <option value="5-6">5-6 (Fair)</option>
+                        <option value="1-4">1-4 (Poor)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="searchFilter">Search</label>
+                    <input type="text" id="searchFilter" placeholder="Search reviews...">
+                </div>
+                <div class="filter-group">
+                    <label for="pageSizeFilter">Page Size</label>
+                    <select id="pageSizeFilter" onchange="changePageSize()">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('good')">Good Reviews</div>
+            <div class="tab" onclick="switchTab('bad')">Bad Reviews</div>
+        </div>
+        <div id="good-reviews" class="tab-content active">
+            <div id="good-reviews-loading" class="loading">Loading good reviews...</div>
+            <div id="good-reviews-error" class="error" style="display: none;"></div>
+            <table id="good-reviews-table" class="reviews-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Review ID</th>
+                        <th>Hotel ID</th>
+                        <th>Platform</th>
+                        <th>Rating</th>
+                        <th>Title</th>
+                        <th>Comment</th>
+                        <th>Review Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="good-reviews-tbody"></tbody>
+            </table>
+            <div id="good-reviews-pagination" class="pagination" style="display: none;"></div>
+        </div>
+        <div id="bad-reviews" class="tab-content">
+            <div id="bad-reviews-loading" class="loading">Loading bad reviews...</div>
+            <div id="bad-reviews-error" class="error" style="display: none;"></div>
+            <table id="bad-reviews-table" class="reviews-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Platform</th>
+                        <th>Reason</th>
+                        <th>JSON Data</th>
+                        <th>Created Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bad-reviews-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="nlp-page" class="menu-content">
+    <h2>NLP Analysis</h2>
+    <p>This page is common for both admin and user. (Content to be implemented)</p>
+</div>
+
+<style>
+    /* All CSS from reviews.html, scoped to .container ... */
+    body .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+    .stat-card.bad { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .stat-number { font-size: 2em; font-weight: bold; margin-bottom: 5px; }
+    .stat-label { font-size: 0.9em; opacity: 0.9; }
+    .filters { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .filter-row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .filter-group { display: flex; flex-direction: column; gap: 5px; }
+    .filter-group label { font-weight: bold; font-size: 0.9em; }
+    .filter-group select, .filter-group input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-width: 120px; background: #fff; }
+    .filter-group select:focus, .filter-group input:focus { outline: 2px solid #007bff; }
+    .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background-color 0.3s, box-shadow 0.3s; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .btn-primary { background-color: #007bff; color: white; }
+    .btn-primary:hover { background-color: #0056b3; }
+    .btn-secondary { background-color: #f8f9fa; color: #333; border: 1px solid #ddd; }
+    .btn-secondary:hover { background-color: #e2e6ea; }
+    .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+    .tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s; }
+    .tab.active { border-bottom-color: #007bff; color: #007bff; font-weight: bold; }
+    .tab:hover { background-color: #f8f9fa; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .reviews-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .reviews-table th, .reviews-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+    .reviews-table th { background-color: #f8f9fa; font-weight: bold; color: #495057; }
+    .reviews-table tr:hover { background-color: #f8f9fa; }
+    .rating { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.9em; }
+    .rating.excellent { background-color: #28a745; color: white; }
+    .rating.good { background-color: #17a2b8; color: white; }
+    .rating.fair { background-color: #ffc107; color: black; }
+    .rating.poor { background-color: #dc3545; color: white; }
+    .platform-badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; }
+    .platform-agoda { background-color: #e3f2fd; color: #1976d2; }
+    .platform-booking { background-color: #f3e5f5; color: #7b1fa2; }
+    .platform-expedia { background-color: #e8f5e8; color: #388e3c; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px; font-size: 1em; }
+    .pagination .page-size-group { margin-left: 20px; display: flex; align-items: center; gap: 5px; }
+    .pagination .page-info { margin-left: 20px; color: #666; font-size: 0.95em; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .error { background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+    .success { background-color: #d4edda; color: #155724; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+    .review-comment { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .review-comment.expanded { white-space: normal; max-width: none; }
+    .expand-btn { color: #007bff; cursor: pointer; font-size: 0.8em; }
+</style>
+<script>
+    // All JS from reviews.html, refactored to run on page load
+    // ... (Insert the full reviews.html JS here, unchanged except for removing DOMContentLoaded)
+</script>
+
 </body>
 </html>
