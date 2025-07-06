@@ -35,11 +35,13 @@ jobs:
           # This path assumes JaCoCo aggregate report is configured in the parent POM
           # and generates to target/site/jacoco-aggregate/
           # Adjust the path if your JaCoCo configuration outputs to a different location
-          path: '**/target/site/jacoco-aggregate/' # Common path for aggregated report
-          # Alternative if you want individual module reports as well:
-          # path: |
-          #   **/target/site/jacoco/
-          #   **/target/site/jacoco-aggregate/
+          path: |
+            **/target/site/jacoco-aggregate/ 
+            **/target/site/jacoco/
+          # Path for the combined aggregate report
+          # Path for individual module reports (each module's target/site/jacoco)
+          # You might want to exclude .exec files if they're not needed
+          # retention-days: 7 # Optional: how long to keep the artifact
 
       - name: Upload Surefire Test Reports (Optional but Recommended)
         uses: actions/upload-artifact@v4
