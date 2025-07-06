@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ public class BadReviewRecordService {
     /**
      * Get all bad review records
      */
+    @Cacheable(value = "bad-reviews", key = "'all_bad'")
     public List<BadReviewRecord> getAllBadRecords() {
         return badReviewRecordRepository.findAll();
     }
@@ -40,6 +42,7 @@ public class BadReviewRecordService {
     /**
      * Get bad review record by ID
      */
+    @Cacheable(value = "bad-reviews", key = "'bad_id_' + #id")
     public BadReviewRecord getBadRecordById(Long id) {
         return badReviewRecordRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Bad review record not found with id: " + id));
@@ -48,6 +51,7 @@ public class BadReviewRecordService {
     /**
      * Get bad records by platform
      */
+    @Cacheable(value = "bad-reviews", key = "'bad_platform_' + #platform")
     public List<BadReviewRecord> getBadRecordsByPlatform(String platform) {
         return badReviewRecordRepository.findByPlatform(platform);
     }
@@ -55,6 +59,7 @@ public class BadReviewRecordService {
     /**
      * Get bad records by reason
      */
+    @Cacheable(value = "bad-reviews", key = "'bad_reason_' + #reason")
     public List<BadReviewRecord> getBadRecordsByReason(String reason) {
         return badReviewRecordRepository.findByReasonContainingIgnoreCase(reason);
     }
@@ -62,6 +67,7 @@ public class BadReviewRecordService {
     /**
      * Get bad records created after a specific date
      */
+    @Cacheable(value = "bad-reviews", key = "'bad_after_date_' + #date")
     public List<BadReviewRecord> getBadRecordsAfterDate(LocalDateTime date) {
         return badReviewRecordRepository.findByCreatedAtAfter(date);
     }
@@ -69,6 +75,7 @@ public class BadReviewRecordService {
     /**
      * Get recent bad records
      */
+    @Cacheable(value = "bad-reviews", key = "'bad_recent'")
     public List<BadReviewRecord> getRecentBadRecords() {
         return badReviewRecordRepository.findRecentBadRecords();
     }
@@ -98,6 +105,7 @@ public class BadReviewRecordService {
     /**
      * Get statistics about bad review records
      */
+    @Cacheable(value = "review-stats", key = "'bad_statistics'")
     public Map<String, Object> getStatistics() {
         Map<String, Object> stats = new HashMap<>();
         
@@ -130,6 +138,7 @@ public class BadReviewRecordService {
     /**
      * Get statistics for a specific platform
      */
+    @Cacheable(value = "review-stats", key = "'bad_statistics_platform_' + #platform")
     public Map<String, Object> getStatisticsByPlatform(String platform) {
         Map<String, Object> stats = new HashMap<>();
         
