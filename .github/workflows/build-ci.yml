@@ -1,0 +1,48 @@
+name: Review System CI Build with JaCoCo
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build with Maven and Generate JaCoCo Reports
+        # 'verify' phase typically triggers JaCoCo report generation if configured in parent POM
+        run: mvn clean verify
+
+      - name: Upload JaCoCo Code Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          # This path assumes JaCoCo aggregate report is configured in the parent POM
+          # and generates to target/site/jacoco-aggregate/
+          # Adjust the path if your JaCoCo configuration outputs to a different location
+          path: '**/target/site/jacoco-aggregate/' # Common path for aggregated report
+          # Alternative if you want individual module reports as well:
+          # path: |
+          #   **/target/site/jacoco/
+          #   **/target/site/jacoco-aggregate/
+
+      - name: Upload Surefire Test Reports (Optional but Recommended)
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-test-reports
+          path: '**/surefire-reports/**/*.xml'
