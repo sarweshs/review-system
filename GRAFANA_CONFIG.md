@@ -1,11 +1,12 @@
 # Grafana Configuration Guide for Review System
 
-This guide covers setting up Grafana dashboards to monitor the Review System's producer and consumer services using Prometheus metrics.
+This guide covers setting up Grafana dashboards to monitor the Review System's producer and consumer services using Prometheus metrics and Loki logs.
 
 ## Prerequisites
 
 - Docker and Docker Compose running
 - Prometheus and Grafana services running (already configured in `docker-compose.yaml`)
+- Loki and Promtail services running (already configured in `docker-compose.yaml`)
 - Review Producer running on port 7072
 - Review Consumer running on port 7073
 - Both services exposing Prometheus metrics at `/actuator/prometheus`
@@ -18,7 +19,9 @@ This guide covers setting up Grafana dashboards to monitor the Review System's p
    - **Password**: `admin`
 3. You'll be prompted to change the password on first login (recommended)
 
-## 2. Add Prometheus Data Source
+## 2. Add Data Sources
+
+### 2.1 Add Prometheus Data Source
 
 1. Go to **Settings** (gear icon) → **Data Sources**
 2. Click **Add data source**
@@ -26,6 +29,18 @@ This guide covers setting up Grafana dashboards to monitor the Review System's p
 4. Configure the data source:
    - **Name**: `Prometheus`
    - **URL**: `http://prometheus:9090`
+   - **Access**: `Server (default)`
+5. Click **Save & Test**
+6. You should see a green "Data source is working" message
+
+### 2.2 Add Loki Data Source
+
+1. Go to **Settings** (gear icon) → **Data Sources**
+2. Click **Add data source**
+3. Select **Loki**
+4. Configure the data source:
+   - **Name**: `Loki`
+   - **URL**: `http://loki:3100`
    - **Access**: `Server (default)`
 5. Click **Save & Test**
 6. You should see a green "Data source is working" message
@@ -129,11 +144,130 @@ This guide covers setting up Grafana dashboards to monitor the Review System's p
 - **Visualization**: **Time series**
 - **Unit**: `req/sec`
 
-## 4. Dashboard Layout
+## 4. Create Log Monitoring Dashboard
 
-### 4.1 Organize Panels
+### 4.1 Create New Dashboard for Logs
 
-Arrange your panels in a logical order:
+1. Click **+** (plus icon) → **Dashboard**
+2. Set dashboard title: `Review System Logs`
+3. Click **Add new panel**
+
+### 4.2 Add Application Logs Panel
+
+1. **Data Source**: Select `Loki`
+2. **Query**: `{job="apps"}`
+3. **Panel Title**: `Application Logs`
+4. **Visualization**: **Logs**
+5. **Time Range**: `Last 1 hour`
+
+### 4.3 Add Docker Container Logs Panel
+
+1. **Data Source**: Select `Loki`
+2. **Query**: `{job="docker"}`
+3. **Panel Title**: `Docker Container Logs`
+4. **Visualization**: **Logs**
+5. **Time Range**: `Last 1 hour`
+
+### 4.4 Add System Logs Panel
+
+1. **Data Source**: Select `Loki`
+2. **Query**: `{job="varlogs"}`
+3. **Panel Title**: `System Logs`
+4. **Visualization**: **Logs**
+5. **Time Range**: `Last 1 hour`
+
+### 4.5 Add Filtered Application Logs
+
+#### Review Producer Logs
+- **Query**: `{job="apps"} |= "review-producer"`
+- **Panel Title**: `Review Producer Logs`
+- **Visualization**: **Logs**
+
+#### Review Consumer Logs
+- **Query**: `{job="apps"} |= "review-consumer"`
+- **Panel Title**: `Review Consumer Logs`
+- **Visualization**: **Logs`
+
+#### Error Logs
+- **Query**: `{job="apps"} |= "ERROR"`
+- **Panel Title**: `Error Logs`
+- **Visualization**: **Logs**
+
+#### Kafka Logs
+- **Query**: `{job="apps"} |= "kafka"`
+- **Panel Title**: `Kafka Logs`
+- **Visualization**: **Logs`
+
+### 4.6 Add Log Metrics Panel
+
+#### Log Volume Over Time
+- **Query**: `sum(rate({job="apps"}[5m])) by (level)`
+- **Panel Title**: `Log Volume by Level`
+- **Visualization**: **Time series**
+- **Legend**: `{{level}}`
+
+#### Error Rate
+- **Query**: `sum(rate({job="apps"} |= "ERROR" [5m]))`
+- **Panel Title**: `Error Log Rate`
+- **Visualization**: **Time series**
+- **Unit**: `logs/sec`
+
+## 5. Useful Loki Queries
+
+### 5.1 Basic Log Queries
+
+```logql
+# All application logs
+{job="apps"}
+
+# All logs from last 5 minutes
+{job="apps"} [5m]
+
+# Logs containing "ERROR"
+{job="apps"} |= "ERROR"
+
+# Logs containing "review-producer"
+{job="apps"} |= "review-producer"
+
+# Logs containing "kafka"
+{job="apps"} |= "kafka"
+```
+
+### 5.2 Advanced Log Queries
+
+```logql
+# Error logs with specific pattern
+{job="apps"} |= "ERROR" | json | level="ERROR"
+
+# Logs with JSON parsing
+{job="apps"} | json | level="ERROR"
+
+# Logs with regex matching
+{job="apps"} |~ ".*Exception.*"
+
+# Logs with multiple conditions
+{job="apps"} |= "ERROR" |= "review-producer"
+
+# Logs excluding certain patterns
+{job="apps"} != "DEBUG" != "TRACE"
+```
+
+### 5.3 Log Metrics Queries
+
+```logql
+# Count of logs per level
+sum(rate({job="apps"}[5m])) by (level)
+
+# Count of error logs
+sum(rate({job="apps"} |= "ERROR"[5m]))
+
+# Count of logs by application
+sum(rate({job="apps"}[5m])) by (app)
+```
+
+## 6. Dashboard Layout
+
+### 6.1 Metrics Dashboard Layout
 
 **Row 1: System Overview**
 - Files Processed (Producer)
@@ -157,18 +291,35 @@ Arrange your panels in a logical order:
 - HTTP Request Rate
 - Lines Processed (Producer)
 
-### 4.2 Dashboard Settings
+### 6.2 Logs Dashboard Layout
+
+**Row 1: Application Logs**
+- Review Producer Logs
+- Review Consumer Logs
+- Error Logs
+- Kafka Logs
+
+**Row 2: System Logs**
+- Docker Container Logs
+- System Logs
+- Log Volume by Level
+- Error Log Rate
+
+**Row 3: Log Analysis**
+- All Application Logs (full width)
+
+### 6.3 Dashboard Settings
 
 1. Click the dashboard settings (gear icon)
 2. Set **Title**: `Review System Monitoring`
 3. Set **Description**: `Comprehensive monitoring dashboard for Review Producer and Consumer services`
-4. Set **Tags**: `review-system`, `kafka`, `spring-boot`
+4. Set **Tags**: `review-system`, `kafka`, `spring-boot`, `logs`
 5. Set **Time range**: `Last 1 hour`
 6. Set **Auto-refresh**: `30s`
 
-## 5. Alerts (Optional)
+## 7. Alerts (Optional)
 
-### 5.1 Create Alert Rules
+### 7.1 Create Alert Rules
 
 1. Go to **Alerting** → **Alert Rules**
 2. Click **New alert rule**
@@ -191,9 +342,15 @@ Arrange your panels in a logical order:
 - **Duration**: `5m`
 - **Severity**: `Warning`
 
-## 6. Useful Prometheus Queries
+#### High Error Log Rate Alert
+- **Query**: `sum(rate({job="apps"} |= "ERROR" [5m])) > 1`
+- **Condition**: `High error log rate detected`
+- **Duration**: `2m`
+- **Severity**: `Critical`
 
-### 6.1 Review Producer Queries
+## 8. Useful Prometheus Queries
+
+### 8.1 Review Producer Queries
 
 ```promql
 # Total files processed
@@ -212,7 +369,7 @@ rate(review_producer_file_processing_duration_seconds_sum[5m]) / rate(review_pro
 (review_producer_queue_depth / 100) * 100
 ```
 
-### 6.2 Review Consumer Queries
+### 8.2 Review Consumer Queries
 
 ```promql
 # Total reviews processed
@@ -231,9 +388,9 @@ rate(review_consumer_errors_total[5m])
 rate(review_consumer_processing_duration_seconds_sum[5m]) / rate(review_consumer_processing_duration_seconds_count[5m])
 ```
 
-## 7. Troubleshooting
+## 9. Troubleshooting
 
-### 7.1 No Data Showing
+### 9.1 No Data Showing
 
 1. **Check Prometheus Targets**:
    - Go to [http://localhost:9090/targets](http://localhost:9090/targets)
@@ -247,7 +404,25 @@ rate(review_consumer_processing_duration_seconds_sum[5m]) / rate(review_consumer
    - If using `host.docker.internal`, ensure it resolves correctly
    - On Linux, replace with your host IP address
 
-### 7.2 Metrics Not Available
+### 9.2 No Logs Showing
+
+1. **Check Loki Status**:
+   - Go to [http://localhost:3100/ready](http://localhost:3100/ready)
+   - Should return `ready`
+
+2. **Check Promtail Status**:
+   - Go to [http://localhost:9080/ready](http://localhost:9080/ready)
+   - Should return `ready`
+
+3. **Check Log Files**:
+   - Ensure your application logs are being written to `./logs/` directory
+   - Check if log files exist: `ls -la logs/`
+
+4. **Check Promtail Configuration**:
+   - Verify `promtail-config.yaml` has correct paths
+   - Check Promtail logs: `docker-compose logs promtail`
+
+### 9.3 Metrics Not Available
 
 1. **Verify Spring Boot Configuration**:
    - Ensure `management.endpoints.web.exposure.include=prometheus` is set
@@ -256,15 +431,16 @@ rate(review_consumer_processing_duration_seconds_sum[5m]) / rate(review_consumer
 2. **Check Application Logs**:
    - Look for any errors related to metrics or actuator endpoints
 
-### 7.3 Performance Issues
+### 9.4 Performance Issues
 
 1. **Reduce Scrape Interval**: Change `scrape_interval` in `prometheus.yml` to `30s` or `60s`
 2. **Filter Metrics**: Use metric relabeling to only collect needed metrics
 3. **Increase Memory**: Allocate more memory to Prometheus container
+4. **Log Retention**: Configure Loki retention to manage disk space
 
-## 8. Advanced Configuration
+## 10. Advanced Configuration
 
-### 8.1 Metric Relabeling
+### 10.1 Metric Relabeling
 
 Add to `prometheus.yml` to filter metrics:
 
@@ -280,7 +456,7 @@ scrape_configs:
         action: keep
 ```
 
-### 8.2 Retention and Storage
+### 10.2 Retention and Storage
 
 Configure Prometheus retention in `docker-compose.yaml`:
 
@@ -298,17 +474,29 @@ prometheus:
     - "9090:9090"
 ```
 
-## 9. Next Steps
+### 10.3 Log Retention
+
+Configure Loki retention in `loki-config.yaml`:
+
+```yaml
+limits_config:
+  retention_period: 168h  # 7 days
+  max_query_length: 721h  # 30 days
+```
+
+## 11. Next Steps
 
 1. **Customize Dashboards**: Add more panels based on your specific needs
-2. **Set Up Alerts**: Configure alerting rules for critical metrics
-3. **Add Log Correlation**: Use Loki to correlate logs with metrics
-4. **Performance Tuning**: Optimize Prometheus and Grafana for your workload
+2. **Set Up Alerts**: Configure alerting rules for critical metrics and logs
+3. **Add Log Correlation**: Use trace IDs to correlate logs with metrics
+4. **Performance Tuning**: Optimize Prometheus, Loki, and Grafana for your workload
 5. **Backup Configuration**: Export dashboard JSON files for backup
+6. **Add Custom Log Parsing**: Configure log parsing rules for better log analysis
 
-## 10. Useful Links
+## 12. Useful Links
 
 - [Grafana Documentation](https://grafana.com/docs/)
 - [Prometheus Query Language](https://prometheus.io/docs/prometheus/latest/querying/)
+- [Loki Query Language](https://grafana.com/docs/loki/latest/query/)
 - [Micrometer Prometheus](https://micrometer.io/docs/registry/prometheus)
 - [Spring Boot Actuator](https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html) 
