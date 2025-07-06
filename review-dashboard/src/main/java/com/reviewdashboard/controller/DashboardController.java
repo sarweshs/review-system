@@ -17,7 +17,9 @@ public class DashboardController {
 
     @Autowired
     private RestTemplate restTemplate;
-    private static final String SERVICE_URL = "http://localhost:7070";
+    
+    @org.springframework.beans.factory.annotation.Value("${review.service.url:http://review-service:7070}")
+    private String serviceUrl;
 
     @GetMapping("/post-login")
     public String postLogin(@AuthenticationPrincipal OidcUser oidcUser) {
@@ -44,9 +46,12 @@ public class DashboardController {
                 .map(a -> a.getAuthority())
                 .collect(Collectors.toList()));
         
+        // Add service URL to model for frontend JavaScript
+        model.addAttribute("serviceUrl", serviceUrl);
+        
         // Fetch sources from backend
         try {
-            com.reviewcore.model.ReviewSource[] sources = restTemplate.getForObject(SERVICE_URL + "/api/sources", com.reviewcore.model.ReviewSource[].class);
+            com.reviewcore.model.ReviewSource[] sources = restTemplate.getForObject(serviceUrl + "/api/sources", com.reviewcore.model.ReviewSource[].class);
             model.addAttribute("sources", sources != null ? java.util.List.of(sources) : java.util.List.of());
             log.debug("Successfully fetched {} sources for admin page", sources != null ? sources.length : 0);
         } catch (Exception e) {
@@ -64,6 +69,10 @@ public class DashboardController {
         model.addAttribute("roles", oidcUser.getAuthorities().stream()
                 .map(a -> a.getAuthority())
                 .collect(Collectors.toList()));
+        
+        // Add service URL to model for frontend JavaScript
+        model.addAttribute("serviceUrl", serviceUrl);
+        
         return "user";
     }
 }

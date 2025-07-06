@@ -227,6 +227,15 @@
     <a href="#" onclick="showMenu('nlp-page');return false;">NLP</a>
 </nav>
 
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var activeMenu = /*[[${activeMenu}]]*/ 'see-reviews';
+    document.addEventListener('DOMContentLoaded', function() {
+        showMenu(activeMenu);
+    });
+    /*]]>*/
+</script>
+
 <div id="source-config" class="menu-content">
     <h2>Configure Source</h2>
     <div th:if="${message}" style="color: green; margin: 10px 0; padding: 10px; background: #e8f5e8; border-radius: 4px;">
@@ -491,6 +500,10 @@
         #see-reviews .review-comment.expanded { white-space: normal; max-width: none; }
         #see-reviews .expand-btn { color: #007bff; cursor: pointer; font-size: 0.8em; }
     </style>
+    <script>
+        // Set API base URL for reviews dashboard
+        window.API_BASE_URL = '[[${serviceUrl}]]' || 'http://localhost:7070';
+    </script>
     <script src="/js/reviews-dashboard.js"></script>
     <script>
         // Admin-specific initialization for the reviews section
@@ -520,7 +533,7 @@
         }
         
         // Cache management functions for admin
-        const ADMIN_API_BASE_URL = 'http://localhost:7070';
+        const ADMIN_API_BASE_URL = window.ADMIN_API_BASE_URL || '[[${serviceUrl}]]' || 'http://localhost:7070';
         
         function invalidateAllCaches() {
             if (confirm('Are you sure you want to invalidate all caches? This will clear all cached data.')) {

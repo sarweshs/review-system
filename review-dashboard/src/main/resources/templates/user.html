@@ -186,6 +186,10 @@
     .review-comment.expanded { white-space: normal; max-width: none; }
     .expand-btn { color: #007bff; cursor: pointer; font-size: 0.8em; }
 </style>
+    <script>
+        // Set API base URL for reviews dashboard
+        window.API_BASE_URL = '[[${serviceUrl}]]' || 'http://localhost:7070';
+    </script>
     <script src="/js/reviews-dashboard.js"></script>
 
 </body>

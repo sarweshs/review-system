@@ -9,7 +9,7 @@ let totalItems = 0;
 let platforms = [];
 
 // API base URL - update this to match your service port
-const API_BASE_URL = 'http://localhost:7070';
+const API_BASE_URL = window.API_BASE_URL || 'http://localhost:7070';
 
 // Initialize the dashboard
 function initializeReviewsDashboard() {

@@ -1,0 +1,67 @@
+server:
+  port: 8081
+
+# Review service URL for Docker environment
+review-service:
+  url: http://review-service:7070
+
+spring:
+  thymeleaf:
+    cache: false
+  profiles:
+    active: docker
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: review-dashboard-client
+            client-secret: WUBOQVFaO0WNLmRhlvgY1aeQ4Icdymm5
+            scope: openid,profile,roles,email
+            authorization-grant-type: authorization_code
+            redirect-uri: "http://localhost:8081/login/oauth2/code/keycloak"
+            client-authentication-method: client_secret_basic
+        provider:
+          keycloak:
+            issuer-uri: http://keycloak:8080/realms/review-realm
+            user-name-attribute: preferred_username
+            token-uri: http://keycloak:8080/realms/review-realm/protocol/openid-connect/token
+            authorization-uri: http://keycloak:8080/realms/review-realm/protocol/openid-connect/auth
+
+# Enhanced Logging configuration
+logging:
+  level:
+    root: INFO
+    com.reviewdashboard: DEBUG
+    com.reviewcore: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.thymeleaf: INFO
+  
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  
+  file:
+    name: logs/review-dashboard.log
+    max-size: 10MB
+    max-history: 30
+  
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+
+# Actuator configuration for Prometheus metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true 

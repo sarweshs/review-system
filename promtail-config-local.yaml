@@ -1,0 +1,144 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml  # Tracks log file positions
+
+clients:
+  - url: http://localhost:3100/loki/api/v1/push
+    backoff_config:
+      min_period: 1s
+      max_period: 5s
+      max_retries: 5
+    timeout: 10s
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: varlogs
+          __path__: /var/log/*.log  # System logs
+          host: ${HOSTNAME}
+
+  - job_name: review-applications-local
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            thread: thread
+      - labels:
+          level:
+          logger:
+          application:
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: review-apps-local
+          __path__: ./logs/*.log  # Local application logs from project root
+          host: ${HOSTNAME}
+          application: review-system
+          environment: local
+
+  - job_name: review-service-local
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            thread: thread
+      - labels:
+          level:
+          logger:
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: review-service
+          __path__: ./logs/review-service.log
+          host: ${HOSTNAME}
+          application: review-service
+          environment: local
+
+  - job_name: review-dashboard-local
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            thread: thread
+      - labels:
+          level:
+          logger:
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: review-dashboard
+          __path__: ./logs/review-dashboard.log
+          host: ${HOSTNAME}
+          application: review-dashboard
+          environment: local
+
+  - job_name: review-producer-local
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            thread: thread
+      - labels:
+          level:
+          logger:
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: review-producer
+          __path__: ./logs/review-producer.log
+          host: ${HOSTNAME}
+          application: review-producer
+          environment: local
+
+  - job_name: review-consumer-local
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            thread: thread
+      - labels:
+          level:
+          logger:
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: review-consumer
+          __path__: ./logs/review-consumer.log
+          host: ${HOSTNAME}
+          application: review-consumer
+          environment: local 

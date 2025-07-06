@@ -22,3 +22,8 @@ spring:
             user-name-attribute: preferred_username
             token-uri: http://localhost:8080/realms/review-realm/protocol/openid-connect/token
             authorization-uri: http://localhost:8080/realms/review-realm/protocol/openid-connect/auth
+
+# Review service URL for local development
+review:
+  service:
+    url: http://localhost:7070

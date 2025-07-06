@@ -6,22 +6,22 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'review-service'
+  - job_name: 'review-service-local'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['review-service:7070']
+      - targets: ['localhost:7070']
 
-  - job_name: 'review-dashboard'
+  - job_name: 'review-dashboard-local'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['review-dashboard:8081']
+      - targets: ['localhost:8081']
 
-  - job_name: 'review-producer'
+  - job_name: 'review-producer-local'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['review-producer:7072']
+      - targets: ['localhost:7072']
 
-  - job_name: 'review-consumer'
+  - job_name: 'review-consumer-local'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['review-consumer:7073'] 
+      - targets: ['localhost:7073'] 

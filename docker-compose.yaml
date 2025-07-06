@@ -116,33 +116,69 @@ services:
     depends_on:
       - loki
 
-  # Uncomment and adjust these services if you want them to run within Docker Compose
-  # review-service:
-  #   build: ./review-service
-  #   environment:
-  #    - LOG_FILE_PATH=/logs/review-service.log
-  #    - LOG_LEVEL=INFO
-  #    - REVIEW_SERVICE_LOG_LEVEL=DEBUG
-  #    - SPRING_PROFILES_ACTIVE=prod
-  #   volumes:
-  #     - logs:/logs
-  #   depends_on:
-  #     - postgres
-  #     - kafka
-  #     - redis
-  #     - vault
+  review-service:
+    build: ./review-service
+    ports:
+      - "7070:7070"
+    environment:
+      - LOG_FILE_PATH=/logs/review-service.log
+      - LOG_LEVEL=INFO
+      - REVIEW_SERVICE_LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=docker
+    volumes:
+      - logs:/logs
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+      - vault
 
-  # review-dashboard:
-  #   build: ./review-dashboard
-  #   environment:
-  #     - LOG_FILE_PATH=/logs/review-dashboard.log
-  #     - LOG_LEVEL=INFO
-  #     - REVIEW_DASHBOARD_LOG_LEVEL=DEBUG
-  #     - SPRING_PROFILES_ACTIVE=prod
-  #   volumes:
-  #     - logs:/logs
-  #   depends_on:
-  #     - review-service
+  review-dashboard:
+    build: ./review-dashboard
+    ports:
+      - "8081:8081"
+    environment:
+      - LOG_FILE_PATH=/logs/review-dashboard.log
+      - LOG_LEVEL=INFO
+      - REVIEW_DASHBOARD_LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=docker
+      - REVIEW_SERVICE_URL=http://review-service:7070
+    volumes:
+      - logs:/logs
+    depends_on:
+      - review-service
+
+  review-producer:
+    build: ./review-producer
+    environment:
+      - LOG_FILE_PATH=/logs/review-producer.log
+      - LOG_LEVEL=INFO
+      - REVIEW_PRODUCER_LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=docker
+    ports:
+      - "7072:7072"
+    volumes:
+      - logs:/logs
+    depends_on:
+      - kafka
+      - vault
+      - postgres
+
+  review-consumer:
+    build: ./review-consumer
+    environment:
+      - LOG_FILE_PATH=/logs/review-consumer.log
+      - LOG_LEVEL=INFO
+      - REVIEW_CONSUMER_LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=docker
+    ports:
+      - "7073:7073"
+    volumes:
+      - logs:/logs
+    depends_on:
+      - kafka
+      - vault
+      - postgres
 
 # To run review-service and review-dashboard locally (not in Docker):
 # - Do NOT run these services via docker-compose

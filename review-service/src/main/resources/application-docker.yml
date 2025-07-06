@@ -1,0 +1,96 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/reviews
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:data.sql
+  redis:
+    host: redis
+    port: 6379
+    timeout: 2000ms
+
+kafka:
+  bootstrap-servers: kafka:9092
+  topic:
+    reviews: reviews
+    bad-reviews: bad_review_records
+
+minio:
+  endpoint: http://minio:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: reviews
+
+vault:
+  host: vault
+  port: 8200
+  token: devroot
+
+sources:
+  - name: agoda
+    uri: minio://reviews/agoda/
+    last-processed-timestamp: 0
+  - name: booking
+    uri: minio://reviews/booking/
+    last-processed-timestamp: 0
+  - name: expedia
+    uri: minio://reviews/expedia/
+    last-processed-timestamp: 0
+
+fetcher:
+  poll-interval-ms: 60000
+
+server:
+  port: 7070
+
+app:
+  encryption:
+    key: ${ENCRYPTION_KEY:defaultEncryptionKey12345678901234567890123456789012}
+
+# Enhanced Logging configuration
+logging:
+  level:
+    root: INFO
+    com.reviewservice: DEBUG
+    com.reviewcore: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  
+  file:
+    name: logs/review-service.log
+    max-size: 10MB
+    max-history: 30
+  
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+
+# Actuator configuration for Prometheus metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true 

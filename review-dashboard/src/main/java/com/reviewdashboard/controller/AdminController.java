@@ -3,6 +3,7 @@ package com.reviewdashboard.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -24,14 +25,15 @@ public class AdminController {
     @Autowired
     private RestTemplate restTemplate;
     
-    private static final String SERVICE_URL = "http://localhost:7070";
+    @Value("${review.service.url:http://review-service:7070}")
+    private String serviceUrl;
     
     @GetMapping("/source/add")
     public String showAddSourceForm(Model model) {
         logger.info("Rendering add source form");
         // Get existing sources
         try {
-            com.reviewcore.model.ReviewSource[] sources = restTemplate.getForObject(SERVICE_URL + "/api/sources", com.reviewcore.model.ReviewSource[].class);
+            com.reviewcore.model.ReviewSource[] sources = restTemplate.getForObject(serviceUrl + "/api/sources", com.reviewcore.model.ReviewSource[].class);
             model.addAttribute("sources", sources != null ? List.of(sources) : List.of());
         } catch (Exception e) {
             model.addAttribute("sources", List.of());
@@ -46,7 +48,7 @@ public class AdminController {
         // Forward all form fields to backend as a map
         Map<String, Object> request = new HashMap<>(params);
         try {
-            restTemplate.postForObject(SERVICE_URL + "/api/sources", request, com.reviewcore.model.ReviewSource.class);
+            restTemplate.postForObject(serviceUrl + "/api/sources", request, com.reviewcore.model.ReviewSource.class);
             logger.info("Source added successfully");
             model.addAttribute("message", "Source added successfully!");
         } catch (Exception e) {
@@ -55,11 +57,12 @@ public class AdminController {
         }
         // Refresh sources list
         try {
-            com.reviewcore.model.ReviewSource[] sources = restTemplate.getForObject(SERVICE_URL + "/api/sources", com.reviewcore.model.ReviewSource[].class);
+            com.reviewcore.model.ReviewSource[] sources = restTemplate.getForObject(serviceUrl + "/api/sources", com.reviewcore.model.ReviewSource[].class);
             model.addAttribute("sources", sources != null ? List.of(sources) : List.of());
         } catch (Exception e) {
             model.addAttribute("sources", List.of());
         }
+        model.addAttribute("activeMenu", "source-config");
         return "admin";
     }
     
@@ -80,7 +83,7 @@ public class AdminController {
             }
         }
         try {
-            ResponseEntity<Void> resp = restTemplate.postForEntity(SERVICE_URL + "/api/sources/admin/source/update-active", form, Void.class);
+            ResponseEntity<Void> resp = restTemplate.postForEntity(serviceUrl + "/api/sources/admin/source/update-active", form, Void.class);
             if (resp.getStatusCode() == HttpStatus.NO_CONTENT) {
                 logger.info("Source status updated");
             }
@@ -98,7 +101,7 @@ public class AdminController {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("id", id.toString());
         try {
-            ResponseEntity<Void> resp = restTemplate.postForEntity(SERVICE_URL + "/api/sources/admin/source/delete", form, Void.class);
+            ResponseEntity<Void> resp = restTemplate.postForEntity(serviceUrl + "/api/sources/admin/source/delete", form, Void.class);
             if (resp.getStatusCode() == HttpStatus.NO_CONTENT) {
                 logger.info("Source deleted with id={}", id);
             }

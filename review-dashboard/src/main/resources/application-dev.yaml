@@ -23,4 +23,9 @@ spring:
         provider:
           keycloak:
             issuer-uri: http://localhost:9999/realms/dummy
-            user-name-attribute: preferred_username 
+            user-name-attribute: preferred_username
+
+# Review service URL for local development
+review:
+  service:
+    url: http://localhost:7070 
