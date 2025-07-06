@@ -13,6 +13,7 @@ import java.util.Set;
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/cache")
+@CrossOrigin(origins = "*", allowedHeaders = "*", allowCredentials = "false")
 @RequiredArgsConstructor
 public class CacheManagementController {
     

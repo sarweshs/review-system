@@ -146,24 +146,26 @@
             }, 5000);
         }
         
-        async function invalidateCache(cacheType) {
-            try {
-                const response = await fetch(`/api/admin/cache/invalidate-${cacheType}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
+        async function invalidateCache(cacheName) {
+            if (confirm(`Are you sure you want to invalidate the ${cacheName} cache?`)) {
+                try {
+                    const response = await fetch(`${ADMIN_API_BASE_URL}/api/admin/cache/invalidate/${cacheName}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        showCacheStatus(result.message, 'success');
+                    } else {
+                        showCacheStatus('Error: ' + (result.error || 'Unknown error'), 'error');
                     }
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    showCacheStatus(result.message, 'success');
-                } else {
-                    showCacheStatus('Error: ' + (result.error || 'Unknown error'), 'error');
+                } catch (error) {
+                    showCacheStatus('Network error: ' + error.message, 'error');
                 }
-            } catch (error) {
-                showCacheStatus('Network error: ' + error.message, 'error');
             }
         }
         
@@ -201,8 +203,8 @@
                     const infoDiv = document.getElementById('cache-info');
                     infoDiv.innerHTML = `
                         <h4>Cache Information</h4>
-                        <p><strong>Available Caches:</strong> ${result.cacheNames.join(', ')}</p>
-                        <p><strong>Total Caches:</strong> ${result.cacheNames.length}</p>
+                        <p><strong>Total Caches:</strong> ${result.cacheNames ? result.cacheNames.length : 0}</p>
+                        <p><strong>Cache Names:</strong> ${result.cacheNames ? result.cacheNames.join(', ') : 'None'}</p>
                         <p><strong>Last Updated:</strong> ${new Date(result.timestamp).toLocaleString()}</p>
                     `;
                     showCacheStatus('Cache information retrieved successfully', 'info');
@@ -489,10 +491,102 @@
         #see-reviews .review-comment.expanded { white-space: normal; max-width: none; }
         #see-reviews .expand-btn { color: #007bff; cursor: pointer; font-size: 0.8em; }
     </style>
+    <script src="/js/reviews-dashboard.js"></script>
     <script>
-        // All JS from reviews.html, refactored to run on showMenu('see-reviews')
-        // (remove DOMContentLoaded, just run the init logic directly)
-        // ... (Insert the full reviews.html JS here, unchanged except for removing DOMContentLoaded)
+        // Admin-specific initialization for the reviews section
+        function showMenu(menu) {
+            document.querySelectorAll('.menu-content').forEach(function(div) {
+                div.classList.remove('active');
+            });
+            document.getElementById(menu).classList.add('active');
+            
+            // Initialize reviews dashboard when the reviews menu is shown
+            if (menu === 'see-reviews') {
+                console.log('Admin: Initializing reviews dashboard...');
+                // Small delay to ensure DOM elements are ready
+                setTimeout(() => {
+                    if (typeof initializeReviewsDashboard === 'function') {
+                        initializeReviewsDashboard();
+                    } else {
+                        console.log('Reviews dashboard script not loaded yet, retrying...');
+                        setTimeout(() => {
+                            if (typeof initializeReviewsDashboard === 'function') {
+                                initializeReviewsDashboard();
+                            }
+                        }, 500);
+                    }
+                }, 100);
+            }
+        }
+        
+        // Cache management functions for admin
+        const ADMIN_API_BASE_URL = 'http://localhost:7070';
+        
+        function invalidateAllCaches() {
+            if (confirm('Are you sure you want to invalidate all caches? This will clear all cached data.')) {
+                fetch(`${ADMIN_API_BASE_URL}/api/admin/cache/invalidate-all`, { method: 'POST' })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        alert('All caches invalidated successfully!');
+                        getCacheInfo();
+                    })
+                    .catch(error => {
+                        alert('Error invalidating caches: ' + error.message);
+                    });
+            }
+        }
+        
+        function invalidateCache(cacheName) {
+            if (confirm(`Are you sure you want to invalidate the ${cacheName} cache?`)) {
+                fetch(`${ADMIN_API_BASE_URL}/api/admin/cache/invalidate/${cacheName}`, { method: 'POST' })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        alert(`${cacheName} cache invalidated successfully!`);
+                        getCacheInfo();
+                    })
+                    .catch(error => {
+                        alert(`Error invalidating ${cacheName} cache: ` + error.message);
+                    });
+            }
+        }
+        
+        function getCacheInfo() {
+            fetch(`${ADMIN_API_BASE_URL}/api/admin/cache/info`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const cacheInfo = document.getElementById('cache-info');
+                    if (cacheInfo) {
+                        cacheInfo.innerHTML = `
+                            <h4>Cache Status</h4>
+                            <p><strong>Total Caches:</strong> ${data.cacheNames ? data.cacheNames.length : 0}</p>
+                            <p><strong>Cache Names:</strong> ${data.cacheNames ? data.cacheNames.join(', ') : 'None'}</p>
+                            <p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting cache info:', error);
+                    const cacheInfo = document.getElementById('cache-info');
+                    if (cacheInfo) {
+                        cacheInfo.innerHTML = '<p style="color: red;">Error loading cache information</p>';
+                    }
+                });
+        }
     </script>
 </div>
 

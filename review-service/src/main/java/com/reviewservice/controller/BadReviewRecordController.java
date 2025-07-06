@@ -16,6 +16,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/bad-review-records")
+@CrossOrigin(origins = "*", allowedHeaders = "*", allowCredentials = "false")
 @RequiredArgsConstructor
 public class BadReviewRecordController {
     
