@@ -1,0 +1,45 @@
+#!/bin/bash
+
+echo "🔄 Rebuilding Spring Boot applications with fixed logging configuration..."
+
+# Stop only the Spring Boot services
+echo "📦 Stopping Spring Boot services..."
+docker-compose stop review-service review-dashboard review-producer review-consumer
+
+# Remove only the Spring Boot service containers
+echo "🧹 Removing Spring Boot service containers..."
+docker-compose rm -f review-service review-dashboard review-producer review-consumer
+
+# Rebuild only the Spring Boot applications
+echo "🔨 Rebuilding Spring Boot applications..."
+docker-compose build --no-cache review-service review-dashboard review-producer review-consumer
+
+# Start all services (infrastructure services will be reused)
+echo "🚀 Starting all services..."
+docker-compose up -d
+
+# Wait a moment for services to start
+echo "⏳ Waiting for services to start..."
+sleep 10
+
+# Check service status
+echo "📊 Checking service status..."
+docker-compose ps
+
+echo "✅ Rebuild complete! Services should now be running with fixed logging configuration."
+echo ""
+echo "📋 Service URLs:"
+echo "  - Review Dashboard: http://localhost:8081"
+echo "  - Review Service API: http://localhost:7070"
+echo "  - Review Producer: http://localhost:8082"
+echo "  - Review Consumer: http://localhost:7073"
+echo "  - Keycloak: http://localhost:8080"
+echo "  - MinIO Console: http://localhost:9001"
+echo "  - Grafana: http://localhost:3000"
+echo "  - Prometheus: http://localhost:9090"
+echo "  - Loki: http://localhost:3100"
+echo ""
+echo "📝 To view logs:"
+echo "  - All logs: docker-compose logs -f"
+echo "  - Specific service: docker-compose logs -f review-service"
+echo "  - Log files are also persisted in Docker volume 'logs'" 

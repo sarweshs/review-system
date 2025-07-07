@@ -1,0 +1,51 @@
+# Multi-stage build for review-consumer
+FROM maven:3.9.6-eclipse-temurin-17 AS build
+
+# Set working directory
+WORKDIR /app
+
+# Copy all pom.xml files first for better layer caching
+COPY pom.xml ./
+COPY review-core/pom.xml ./review-core/
+COPY review-service/pom.xml ./review-service/
+COPY review-dashboard/pom.xml ./review-dashboard/
+COPY review-producer/pom.xml ./review-producer/
+COPY review-consumer/pom.xml ./review-consumer/
+
+# Download dependencies (this layer will be cached if pom.xml doesn't change)
+RUN mvn dependency:go-offline -B
+
+# Copy source code for review-core and review-consumer only
+COPY review-core/src ./review-core/src
+COPY review-consumer/src ./review-consumer/src
+
+# Build the application
+RUN mvn clean package -pl review-core,review-consumer -am -DskipTests
+
+# Runtime stage
+FROM eclipse-temurin:17-jre-jammy
+
+# Create app user
+RUN addgroup --system app && adduser --system --ingroup app app
+
+# Set working directory
+WORKDIR /app
+
+# Copy the built JAR from build stage
+COPY --from=build /app/review-consumer/target/review-consumer-*.jar app.jar
+
+# Create logs directory
+RUN mkdir -p /logs && chown -R app:app /logs
+
+# Switch to app user
+USER app
+
+# Expose port
+EXPOSE 7073
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:7073/actuator/health || exit 1
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=docker"]

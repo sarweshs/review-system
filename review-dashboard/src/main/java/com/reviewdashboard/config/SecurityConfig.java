@@ -20,6 +20,19 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
+    public SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/actuator/**")
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()
+                )
+                .csrf(csrf -> csrf.disable());
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     public SecurityFilterChain adminSecurityFilterChain(HttpSecurity http,
                                                         ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         http
@@ -41,7 +54,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Order(2)
+    @Order(3)
     public SecurityFilterChain userSecurityFilterChain(HttpSecurity http,
                                                        ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         http

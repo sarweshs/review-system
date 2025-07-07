@@ -295,7 +295,24 @@ docker run --rm \
 ## 6. Import Realm File
 ```bash
 docker run --rm \
-  -v $(pwd)/export:/opt/keycloak/data/import \
+  -v $(pwd)/config_files/review-realm-realm.json:/opt/keycloak/data/import \
   quay.io/keycloak/keycloak:24.0\
   import --dir /opt/keycloak/data/import
 ```
+## Check file
+```bash
+docker exec -it review-system-keycloak-1 ls /opt/keycloak/data/import
+# if above command fails, check the file name and path
+docker exec -it review-system-keycloak-1 bash
+/opt/keycloak/bin/kc.sh import --dir /opt/keycloak/data/import
+# If that does not work as well then run
+docker run --rm \
+  -p 8080:8080 \  # Add this line to publish the port
+  -v $(pwd)/config_files:/opt/keycloak/data/import \
+  -e KEYCLOAK_ADMIN=admin \
+  -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  quay.io/keycloak/keycloak:24.0.0 \
+  start-dev --import-realm
+
+
+````

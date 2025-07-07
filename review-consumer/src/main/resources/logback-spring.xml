@@ -6,10 +6,19 @@
         <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
     </springProfile>
     
+    <!-- Define log path based on profile -->
+    <springProfile name="docker">
+        <property name="LOG_PATH" value="/logs"/>
+    </springProfile>
+    
+    <springProfile name="!docker">
+        <property name="LOG_PATH" value="logs"/>
+    </springProfile>
+    
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/review-consumer.log</file>
+        <file>${LOG_PATH}/review-consumer.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/review-consumer.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/review-consumer.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
                 <maxFileSize>10MB</maxFileSize>
             </timeBasedFileNamingAndTriggeringPolicy>

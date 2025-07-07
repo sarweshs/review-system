@@ -41,7 +41,7 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   
   file:
-    name: logs/review-consumer.log
+    name: /logs/review-consumer.log
     max-size: 10MB
     max-history: 30
   

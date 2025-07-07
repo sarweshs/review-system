@@ -8,9 +8,6 @@ review-service:
 spring:
   thymeleaf:
     cache: false
-  profiles:
-    active: docker
-
   security:
     oauth2:
       client:
@@ -44,7 +41,7 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   
   file:
-    name: logs/review-dashboard.log
+    name: /logs/review-dashboard.log
     max-size: 10MB
     max-history: 30
   

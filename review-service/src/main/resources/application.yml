@@ -15,12 +15,6 @@ spring:
     init:
       mode: always
       schema-locations: classpath:data.sql
-  redis:
-    host: localhost
-    port: 6379
-    timeout: 2000ms
-
-
 
 sources:
   - name: agoda
@@ -36,8 +30,6 @@ sources:
 fetcher:
   poll-interval-ms: 60000
 
-
-
 server:
   port: 7070
 
@@ -51,7 +43,6 @@ logging:
     root: INFO
     com.reviewservice: DEBUG
     com.reviewcore: DEBUG
-
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
@@ -61,7 +52,7 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   
   file:
-    name: logs/review-service.log
+    name: /logs/review-service.log
     max-size: 10MB
     max-history: 30
   
@@ -69,4 +60,16 @@ logging:
     rollingpolicy:
       max-file-size: 10MB
       max-history: 30
-      total-size-cap: 1GB 
+      total-size-cap: 1GB
+
+# Actuator configuration for health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true 

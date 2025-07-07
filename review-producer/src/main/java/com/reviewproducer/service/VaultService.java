@@ -2,6 +2,7 @@ package com.reviewproducer.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -43,8 +44,41 @@ public class VaultService {
     public VaultService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    @PostConstruct
+    public void init() {
+        // Debug: Log configuration values
+        log.info("VaultService initialization - vaultScheme: '{}', vaultHost: '{}', vaultPort: {}, vaultToken: '{}', secretPath: '{}'",
+                vaultScheme, vaultHost, vaultPort, vaultToken != null ? "***" : "null", secretPath);
+        
+        // Validate configuration before loading key
+        validateConfiguration();
+        
         this.keyBytes = loadKey();
     }
+    
+    private void validateConfiguration() {
+        if (vaultScheme == null || vaultScheme.trim().isEmpty()) {
+            log.error("Vault scheme is null or empty. Current value: '{}'", vaultScheme);
+            throw new RuntimeException("Vault scheme is null or empty. Check vault.scheme configuration.");
+        }
+        if (vaultHost == null || vaultHost.trim().isEmpty()) {
+            log.error("Vault host is null or empty. Current value: '{}'", vaultHost);
+            throw new RuntimeException("Vault host is null or empty. Check vault.host configuration.");
+        }
+        if (vaultToken == null || vaultToken.trim().isEmpty()) {
+            log.error("Vault token is null or empty. Current value: '{}'", vaultToken);
+            throw new RuntimeException("Vault token is null or empty. Check vault.token configuration.");
+        }
+        if (secretPath == null || secretPath.trim().isEmpty()) {
+            log.error("Vault secret path is null or empty. Current value: '{}'", secretPath);
+            throw new RuntimeException("Vault secret path is null or empty. Check vault.secret-path configuration.");
+        }
+        
+        log.info("Vault configuration validation passed");
+    }
+
 
     private byte[] loadKey() {
         String hexKey = redisTemplate.opsForValue().get(REDIS_KEY);
@@ -64,6 +98,7 @@ public class VaultService {
 
     public String fetchKeyFromVault() throws Exception {
         String vaultUrl = vaultScheme + "://" + vaultHost + ":" + vaultPort + secretPath;
+        log.info("Attempting to fetch AES key from Vault at: {}", vaultUrl);
         
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()

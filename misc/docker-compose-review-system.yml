@@ -1,0 +1,99 @@
+version: "3.9"
+
+services:
+  review-service:
+    build:
+      context: .
+      dockerfile: review-service/Dockerfile
+    networks:
+      - review-network  # Explicit network attachment
+    ports:
+      - "7070:7070"
+    environment:
+      - LOG_FILE_PATH=/logs/review-service.log
+      - LOG_LEVEL=INFO
+      - REVIEW_SERVICE_LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=docker
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/reviews  # Using service name
+      - SPRING_REDIS_HOST=redis  # Using service name
+    volumes:
+      - logs:/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  review-dashboard:
+    build:
+      context: .
+      dockerfile: review-dashboard/Dockerfile
+    networks:
+      - review-network  # Explicit network attachment
+    ports:
+      - "8081:8081"
+    environment:
+      - LOG_FILE_PATH=/logs/review-dashboard.log
+      - LOG_LEVEL=INFO
+      - REVIEW_DASHBOARD_LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=docker
+      - REVIEW_SERVICE_URL=http://review-service:7070  # Using service name
+    volumes:
+      - logs:/logs
+    depends_on:
+      review-service:
+        condition: service_started
+    restart: unless-stopped
+
+  review-producer:
+    build:
+      context: .
+      dockerfile: review-producer/Dockerfile
+    networks:
+      - review-network  # Explicit network attachment
+    environment:
+      - LOG_FILE_PATH=/logs/review-producer.log
+      - LOG_LEVEL=INFO
+      - REVIEW_PRODUCER_LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092  # Using service name
+    ports:
+      - "8082:8082"
+    volumes:
+      - logs:/logs
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  review-consumer:
+    build:
+      context: .
+      dockerfile: review-consumer/Dockerfile
+    networks:
+      - review-network  # Explicit network attachment
+    environment:
+      - LOG_FILE_PATH=/logs/review-consumer.log
+      - LOG_LEVEL=INFO
+      - REVIEW_CONSUMER_LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_KAFKA_BOOTSTRAP-SERVERS=kafka:9092  # Using service name
+    ports:
+      - "7073:7073"
+    volumes:
+      - logs:/logs
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  review-network:
+    external: true
+    name: review-network  # Ensures consistent naming
+
+volumes:
+  logs:

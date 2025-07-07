@@ -1,16 +1,34 @@
-version: '3.8'
+version: "3.9"
 
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0
+    image: quay.io/keycloak/keycloak:24.0.0
     ports:
       - "8080:8080"
     environment:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HEALTH_ENABLED=true
     command: [ "start-dev" ]
     volumes:
       - keycloakdata:/var/lib/keycloak/data
+      - ./config_files:/opt/keycloak/data/import
+    restart: unless-stopped
+    # Health check for Keycloak to ensure it is ready before other services start
+  keycloak-healthcheck:
+    image: curlimages/curl:8.7.1
+    depends_on:
+      - keycloak
+    command: >
+      sh -c "
+        for i in $(seq 1 10); do
+          echo '🔍 Checking Keycloak health...';
+          curl -fsS http://localhost:8080/health/ready && exit 0 || sleep 5;
+        done;
+        echo '❌ Keycloak failed readiness check.';
+        exit 1
+      "
+    network_mode: service:keycloak
 
   postgres:
     image: postgres:15
@@ -22,6 +40,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka:
     image: bitnami/kafka:3.7
@@ -30,16 +54,21 @@ services:
     environment:
       - KAFKA_CFG_NODE_ID=0
       - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093 # Refer to 'kafka' service name
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_INTERNAL://:29092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 # Use 'kafka' here if other services connect to it by name
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-
     volumes:
       - kafka_data:/bitnami/kafka
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   minio:
     image: minio/minio
@@ -52,11 +81,18 @@ services:
       - "9001:9001"
     volumes:
       - minio-data:/data
+    restart: unless-stopped
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   prometheus:
     image: prom/prometheus
@@ -65,7 +101,8 @@ services:
     ports:
       - "9090:9090"
     extra_hosts:
-      - "host.docker.internal:host-gateway" # Allows access to host machine
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana
@@ -76,6 +113,7 @@ services:
       - ./grafana/datasources:/etc/grafana/provisioning/datasources
     depends_on:
       - prometheus
+    restart: unless-stopped
 
   vault:
     image: hashicorp/vault:1.16
@@ -90,34 +128,36 @@ services:
     command: vault server -dev -dev-root-token-id=devroot -dev-listen-address=0.0.0.0:8200
     restart: unless-stopped
 
-  # Loki for log aggregation
   loki:
     image: grafana/loki:2.9.2
     ports:
       - "3100:3100"
     volumes:
       - ./loki-config.yaml:/etc/loki/local-config.yaml
-      - loki_data:/loki  # This is critical for storage
+      - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
 
-  # Promtail for log shipping
   promtail:
     image: grafana/promtail:2.9.2
     volumes:
       - type: bind
         source: ./promtail-config.yaml
         target: /etc/promtail/config.yml
-      - /var/log:/var/log # Host's log directory
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro # Docker container logs
-      - ./logs:/logs # Your application's log directory (if logs are written here)
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./logs:/logs
     command:
       - -config.file=/etc/promtail/config.yml
       - -config.expand-env=true
     depends_on:
       - loki
+    restart: unless-stopped
 
   review-service:
-    build: ./review-service
+    build:
+      context: .
+      dockerfile: review-service/Dockerfile
     ports:
       - "7070:7070"
     environment:
@@ -125,16 +165,25 @@ services:
       - LOG_LEVEL=INFO
       - REVIEW_SERVICE_LOG_LEVEL=DEBUG
       - SPRING_PROFILES_ACTIVE=docker
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     volumes:
       - logs:/logs
     depends_on:
-      - postgres
-      - kafka
-      - redis
-      - vault
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      vault:
+        condition: service_started
+    restart: unless-stopped
 
   review-dashboard:
-    build: ./review-dashboard
+    build:
+      context: .
+      dockerfile: review-dashboard/Dockerfile
     ports:
       - "8081:8081"
     environment:
@@ -146,26 +195,38 @@ services:
     volumes:
       - logs:/logs
     depends_on:
-      - review-service
+      keycloak-healthcheck:
+        condition: service_completed_successfully
+      review-service:
+        condition: service_started
+    restart: unless-stopped
 
   review-producer:
-    build: ./review-producer
+    build:
+      context: .
+      dockerfile: review-producer/Dockerfile
     environment:
       - LOG_FILE_PATH=/logs/review-producer.log
       - LOG_LEVEL=INFO
       - REVIEW_PRODUCER_LOG_LEVEL=DEBUG
       - SPRING_PROFILES_ACTIVE=docker
     ports:
-      - "7072:7072"
+      - "8082:8082"
     volumes:
       - logs:/logs
     depends_on:
-      - kafka
-      - vault
-      - postgres
+      kafka:
+        condition: service_healthy
+      vault:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
   review-consumer:
-    build: ./review-consumer
+    build:
+      context: .
+      dockerfile: review-consumer/Dockerfile
     environment:
       - LOG_FILE_PATH=/logs/review-consumer.log
       - LOG_LEVEL=INFO
@@ -176,14 +237,13 @@ services:
     volumes:
       - logs:/logs
     depends_on:
-      - kafka
-      - vault
-      - postgres
-
-# To run review-service and review-dashboard locally (not in Docker):
-# - Do NOT run these services via docker-compose
-# - Run them with Maven or your IDE
-# - Logs will be written to ./logs/ (bind-mount this directory to Promtail)
+      kafka:
+        condition: service_healthy
+      vault:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

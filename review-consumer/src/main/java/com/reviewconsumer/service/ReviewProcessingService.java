@@ -26,7 +26,7 @@ public class ReviewProcessingService {
     private final ReviewerInfoRepository reviewerInfoRepository;
     private final OverallProviderScoreRepository overallProviderScoreRepository;
     
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS");
     
     /**
      * Process a review message from Kafka

@@ -1,55 +1,24 @@
 spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/reviews
+    username: postgres
+    password: postgres
+
+  redis:
+    host: redis
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+    connect-timeout: 5000ms
+    socket-timeout: 3000ms
+
   kafka:
     bootstrap-servers: kafka:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-
-kafka:
-  topic:
-    reviews: reviews
-    bad-reviews: bad_review_records
-
-vault:
-  host: vault
-  port: 8200
-  token: devroot
-
-server:
-  port: 8082
-
-# Enhanced Logging configuration
-logging:
-  level:
-    root: INFO
-    com.reviewproducer: DEBUG
-    com.reviewcore: DEBUG
-    org.springframework.web: INFO
-    org.springframework.kafka: DEBUG
-  
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-  
-  file:
-    name: logs/review-producer.log
-    max-size: 10MB
-    max-history: 30
-  
-  logback:
-    rollingpolicy:
-      max-file-size: 10MB
-      max-history: 30
-      total-size-cap: 1GB
-
-# Actuator configuration for Prometheus metrics
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: always
-    prometheus:
-      enabled: true 

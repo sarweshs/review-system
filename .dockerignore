@@ -1,0 +1,59 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+*.iml
+.vscode
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven
+target/
+!**/target/*.jar
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+.env.local
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+*.md
+*.pdf
+
+# Python
+review-python/
+.venv/
+__pycache__/
+*.pyc
+
+# Node.js (if any)
+node_modules/
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test files
+**/test/
+**/tests/
+
+# Build artifacts
+*.war
+*.ear
+
+# Configuration files that might contain secrets
+**/application-local.yml
+**/application-dev.yml 
