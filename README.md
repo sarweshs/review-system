@@ -1,207 +1,187 @@
-# Review System Monorepo
 
-This repository is a monorepo for the Review System, supporting both Java (Spring Boot, multi-module Maven) and Python projects.
+# 🛠️ SETUP_INSTRUCTIONS
 
-## Structure
+This guide outlines the prerequisites and steps to set up and run the **Review System**, a multi-module Maven project.
 
-- `review-core/`        — Shared Java models and logic
-- `review-service/`     — Main Spring Boot microservice (now runs on port 7070)
-- `review-dashboard/`   — Dashboard/UI module (runs on port 8081)
-- `review-python/`      — Python microservices/utilities
+---
 
-## Java (Maven Multi-Module)
-- Build all modules:
-  ```sh
-  mvn clean install
+## 📦 Clone the Repository
+### ✅ CI Enabled: This repository uses Continuous Integration via GitHub Actions to automatically build and test the code on every push and pull request.
+#### CI workflows are defined under .github/workflows/ and ensure code quality through automated builds and checks.
+Clone the repository using either SSH or HTTPS:
+
+- **SSH**  
+  ```bash
+  git clone git@github.com:sarweshs/review-system.git
   ```
-- Each module has its own `pom.xml` and can be built/tested independently.
 
-## Python
-- See `review-python/README.md` for setup instructions.
+- **HTTPS**  
+  ```bash
+  git clone https://github.com/sarweshs/review-system.git
+  ```
+---
 
-## Ports
-- **Keycloak**: 8080 (for authentication/SSO)
-- **review-service**: 7070 (Spring Boot API)
-- **review-dashboard**: 8081 (UI/dashboard)
+## ✅ Prerequisites
 
-## Keycloak Integration
-- The system uses Keycloak (running on port 8080) for authentication and SSO.
-- Make sure Keycloak is running and configured with the appropriate realms, clients, and users for your environment.
-- The review-service and review-dashboard modules are configured to use Keycloak for OAuth2/OIDC login and security.
+Ensure the following tools are installed and properly configured on your system:
 
-## Adding More Modules
-- To add a new Java module: create a new directory, add a `pom.xml`, and add it to the `<modules>` section in the root `pom.xml`.
-- To add a new Python service: create a new directory under `review-python/`.
+- **Java 17+**
+- **Apache Maven 3.9.9+**
+- **Docker** (preferably with Docker Dashboard for GUI-based container monitoring)
 
-## Monorepo Best Practices
-- Keep each module self-contained.
-- Use clear documentation in each module.
-- Use CI/CD to test/build all modules on each commit.
+---
 
-# Review System Microservice
+## 🔌 Port Requirements
 
-A production-grade, modular, scalable Spring Boot microservice for ingesting, processing, and storing hotel reviews from S3/MinIO/Cloud Storage, using Kafka, PostgreSQL, Redis, Prometheus, and Grafana.
+Make sure the following ports are free on your system. If any port is occupied, update the relevant ports in:
 
-## Features
-- Periodically pulls review files from S3/MinIO/Cloud Storage
-- Parses JSONL (.jl) review files
-- Publishes reviews to Kafka for decoupled processing
-- Consumes reviews from Kafka, validates, transforms, and stores in PostgreSQL
-- Idempotent processing (no duplicate reviews)
-- Caching support (Redis)
-- Observability with Prometheus and Grafana
-- Dockerized infrastructure for local development
+- `docker-compose-common.yml`
+- `application.yml` of the respective services
 
-## Architecture
-```
-[Storage (S3/MinIO/GCS)]
-        |
-        v
-[Review Fetcher Service] --Kafka--> [Review Processor Service] --DB--> [PostgreSQL]
-        |                                                    |
-        |                                                    v
-        |                                                [Redis]
-        v
-   [Prometheus/Grafana]
-```
+### ✳️ Microservices
 
-## Directory Structure
-- `src/main/java/` - Java source code (modularized by concern)
-- `src/main/resources/` - Config, schema, and data
-- `docker-compose.yaml` - Orchestrates all services
-- `minio/` - Sample .jl files and bucket config
-- `grafana/`, `prometheus/` - Monitoring setup
+| Service           | Port |
+|-------------------|------|
+| review-consumer   | 7073 |
+| review-dashboard  | 8081 |
+| review-producer   | 7072 |
+| review-service    | 7070 |
 
-## Getting Started
+### 🔧 Common Infrastructure Services
 
-### Prerequisites
-- Docker & Docker Compose
-- Java 17+
-- Maven or Gradle
+| Service     | Port | Description |
+|-------------|------|-------------|
+| keycloak    | 8080 | Role-based access for `review-dashboard` |
+| kafka       | 9092 | Message broker for event streaming |
+| loki        | 3100 | Log collector for Grafana |
+| prometheus  | 9090 | Metrics and log storage |
+| minio       | 9000 | S3-compatible storage (MinIO / Storj) |
+| vault       | 8200 | Secrets manager (stores AES key) |
+| redis       | 6379 | In-memory cache |
+| postgres    | 5432 | Review data storage |
+| grafana     | 3000 | Monitoring dashboard |
 
-### 1. Clone the Repository
-```
-git clone <repo-url>
-cd review-system
-```
+---
 
-### 2. Start Infrastructure
-```
-docker-compose up -d
-```
-- PostgreSQL: `localhost:5432`
-- Kafka: `localhost:9092`
-- MinIO: `localhost:9000` (UI: `localhost:9001`, user/pass: `minioadmin`)
-- Redis: `localhost:6379`
-- Prometheus: `localhost:9090`
-- Grafana: `localhost:3000` (admin/admin)
+## 🔐 Environment Variables
 
-### 3. Build and Run the Spring Boot App
-```
-./mvnw clean package
-java -jar target/review-system-0.0.1-SNAPSHOT.jar
+The system uses **MinIO** and **Storj (S3-compatible)** to fetch review records. Environment variables must be defined in a `.env` file at the root of the repository.
+
+> 📄 Copy `env-template` to `.env` and populate it with the actual values.
+
+```env
+# AES Encryption Key
+# Generate with: openssl rand -hex 16 | tr -d '\n'
+AES_KEY=
+
+# S3/Storj Credentials
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_ENDPOINT=https://gateway.storjshare.io
+
+# Vault Configuration (for secret management)
+VAULT_ADDR=
+VAULT_TOKEN=
+VAULT_SECRET_PATH=
+
+# Python integration (optional)
+PYTHON_DATABSE_URL=
 ```
 
-### 4. Configure Storage Backend
-Edit `src/main/resources/application.yml`:
-```
-storage:
-  backend: minio # or reviewstore or gcs
-```
+---
 
-### 5. Add Review Files
-- Upload `.jl` files to the `reviews/` folder in your storage backend (e.g., MinIO bucket).
+## ▶️ Start Common Services
 
-### 6. Monitor
-- Grafana dashboards: [http://localhost:3000](http://localhost:3000)
-- Prometheus metrics: [http://localhost:9090](http://localhost:9090)
+1. Run the common services using the script:
+   ```bash
+   ./start-common-services.sh
+   ```
 
-## Extending
-- Implement the TODOs in storage service classes for S3, MinIO, and GCS.
-- Add more validation/transformation logic in `ReviewService`.
-- Add alerting, dead-letter queue, etc. as needed.
+2. Open Docker Dashboard to validate that all services are running on their respective ports.
 
-## License
-MIT 
+3. Access the Keycloak console at [http://localhost:8080](http://localhost:8080) using:
+   - Username: `admin`
+   - Password: `admin`
+   - Confirm `review-realm` is present in the top-left corner.
 
-## Troubleshooting
-docker-compose down -v
-docker-compose build --no-cache
-docker-compose up -d
+4. Access the Vault console at [http://localhost:8200](http://localhost:8200):
+   - Auth type: `Token`
+   - Token: `devroot`
+   - You should see a configured secret/key.
 
-## Connect to kafka running on port 9092
-```sh
-docker run -d -p 6060:8080 \
-  -e KAFKA_CLUSTERS_0_NAME=local \
-  -e KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=host.docker.internal:9092 \
-  provectuslabs/kafka-ui
-  
- docker run -p 6060:8080 \
-  -e KAFKA_BROKERS=host.docker.internal:9092 \
-  docker.redpanda.com/redpandadata/console:latest
-# If above doesn't work, try this:
-docker network create kafka-net
+> If any container is not up, fix it before proceeding.
 
-docker network connect kafka-net kafka  # if not already in that network
-
-docker run -d -p 6060:8080 \
-  --network kafka-net \
-  -e KAFKA_BROKERS=kafka:29092 \
-  -e CONSOLE_AUTHENTICATION_ENABLED=false \
-  docker.redpanda.com/redpandadata/console:latest
-# If above doesn't work, try this:
-docker network create kafka-net  # if not already created
-
-docker network connect kafka-net kafka  # attach kafka container if needed
-
-docker run -d -p 6060:8080 --network kafka-net \
-  -e AKHQ_CONFIGURATION='
-akhq:
-  connections:
-    my-cluster:
-      properties:
-        bootstrap.servers: "kafka:29092"
-' \
-  tchiotludo/akhq
-
-# Reset KAFKA topic
-./kafka-topics.sh --bootstrap-server localhost:9092 --list
-
-./kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
-     --group review-consumer-group \
-     --topic bad_review_records \
-     --reset-offsets --to-earliest --execute
-````
-## Clear Kafka Topic
-```sh
-./kafka-configs.sh --bootstrap-server localhost:9092 \
-  --entity-type topics --entity-name bad_review_records \
-  --alter --add-config retention.ms=1000
-  
-./kafka-configs.sh --bootstrap-server localhost:9092 \
-  --entity-type topics --entity-name reviews \
-  --alter --add-config retention.ms=1000
-```
-## Check Kafka Topics
-```sh
-kafka-topics.sh --bootstrap-server localhost:9092 --list
-./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic bad_review_records
-./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic good_review_records
+To stop the services, run:
+```bash
+./stop-common-services.sh
 ```
 
-## Delete Kafka Topic
-```sh
-# Delete
-./kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic bad_review_records
-./kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic good_review_records
+---
 
-# Recreate
-./kafka-topics.sh --bootstrap-server localhost:9092 --create --topic bad_review_records --partitions 1 --replication-factor 1
-./kafka-topics.sh --bootstrap-server localhost:9092 --create --topic good_review_records --partitions 1 --replication-factor 1
+## 🧱 Build and Run the Review System
 
-````
-## check kafka messages
-```sh
-docker exec -it review-system-kafka-1 kafka-console-consumer --bootstrap-server localhost:9092 --topic good_review_records --from-beginning --max-messages 5
-docker exec -it review-system-kafka-1 kafka-console-consumer --bootstrap-server localhost:9092 --topic bad_review_records --from-beginning --max-messages 5
-```
+This project is composed of **5 Maven modules**:
+
+### 1. `review-core`
+Contains common models shared across other modules.
+
+### 2. `review-producer`
+- Reads active review sources from the database.
+- Fetches and validates review records.
+- Sends valid records to Kafka topic: `good_review_records`.
+- Sends invalid records to Kafka topic: `bad_review_records`.
+- Exports metrics to Prometheus.
+
+### 3. `review-consumer`
+- Listens to Kafka topics `good_review_records` and `bad_review_records`.
+- Processes and stores them in the database.
+- Exports metrics to Prometheus.
+
+### 4. `review-service`
+- **Must be run first** as it uses **Flyway** to run DB migration scripts.
+- Exposes various APIs to fetch review data.
+- Postman collection is available in the root directory for testing.
+
+### 5. `review-dashboard`
+- Web dashboard for configuring review sources.
+- Provides insights and visualizations.
+
+---
+
+## 🛠️ Build and Run
+
+1. Build the Maven project:
+   ```bash
+   ./start-review-system.sh
+   
+   # For stopping and cleanup use
+    ./stop-review-system.sh
+   ```
+## Alternatively, you can run the services individually but review-service must be started first:
+2. Run the services individually:
+   ```bash
+   mvn spring-boot:run -pl <module-name>
+   ```
+
+   Replace `<module-name>` with one of:
+   - `review-service`
+   - `review-producer`
+   - `review-consumer`
+   - `review-dashboard`
+
+---
+
+## 🧪 Testing and Monitoring
+
+- Use **Postman** collection in the root directory (Review_System_API_v2.2.postman_collection.json) to test APIs from `review-service`.
+- View logs and metrics on **Grafana** (`http://localhost:3000`).
+- **Loki** is used for logging, and **Prometheus** for metrics.
+
+---
+
+## 📝 Utilities
+review-python contains Python utilities for testing and integration.
+
+## 📘 Additional Resources
+
+- 📄 [ZUZU-Review System – High-Level Design (PDF)](./ZUZU-Review-System-High-Level-Design.pdf)
