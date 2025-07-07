@@ -7,7 +7,7 @@ Matching the exact format used by review-producer
 
 import json
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from faker import Faker
 from confluent_kafka import Producer
 import logging
@@ -51,7 +51,7 @@ def create_grades():
 
 def create_good_review():
     """Create a valid review (good data)"""
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     review_date = now - timedelta(days=random.randint(1, 730))
     
     rating = round(random.uniform(5.0, 10.0), 1)
@@ -101,15 +101,22 @@ def create_good_review():
     return review
 
 def create_bad_review():
-    """Create a bad review record (matching producer's BadReviewRecord format)"""
+    """Create a bad review record matching the bad_review_records table schema"""
     # First create a valid review
     valid_review = create_good_review()
     
-    # Create the bad review record in the same format as review-producer
+    # Modify it to make it invalid by setting hotelId to null
+    invalid_review = valid_review.copy()
+    invalid_review["hotelId"] = None
+    
+    # Create the bad review record matching the database schema
     bad_review_record = {
-        "jsonData": json.dumps(valid_review),
-        "platform": valid_review["platform"],
-        "reason": "HOTEL_ID_NULL"  # Example validation failure
+        "review_id": invalid_review["comment"]["hotelReviewId"],
+        "provider_id": invalid_review["comment"]["providerId"],
+        "json_data": json.dumps(invalid_review),
+        "platform": invalid_review["platform"],
+        "reason": "HOTEL_ID_NULL",
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
     
     return bad_review_record
@@ -169,4 +176,4 @@ def send_to_kafka():
 if __name__ == "__main__":
     logging.info("Starting test Kafka producer...")
     send_to_kafka()
-    logging.info("Test completed!") 
+    logging.info("Test completed!")
