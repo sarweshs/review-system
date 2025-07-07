@@ -1,6 +1,7 @@
 package com.reviewproducer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -88,7 +89,17 @@ public class ReviewKafkaProducerService {
      */
     private String createBadReviewRecord(String originalJson, String platform, String reason) {
         try {
-            BadReviewRecord badRecord = new BadReviewRecord(originalJson, platform, reason);
+            // Extract reviewId and providerId from the original JSON
+            JsonNode root = objectMapper.readTree(originalJson);
+            Long reviewId = null;
+            Integer providerId = null;
+            if (root.has("comment") && root.get("comment").has("hotelReviewId")) {
+                reviewId = root.get("comment").get("hotelReviewId").isNull() ? null : root.get("comment").get("hotelReviewId").asLong();
+            }
+            if (root.has("comment") && root.get("comment").has("providerId")) {
+                providerId = root.get("comment").get("providerId").isNull() ? null : root.get("comment").get("providerId").asInt();
+            }
+            BadReviewRecord badRecord = new BadReviewRecord(reviewId, providerId, originalJson, platform, reason);
             return objectMapper.writeValueAsString(badRecord);
         } catch (Exception e) {
             log.error("Failed to create bad review record JSON: {}", e.getMessage(), e);
@@ -100,17 +111,23 @@ public class ReviewKafkaProducerService {
      * Bad review record DTO matching the database schema
      */
     private static class BadReviewRecord {
+        private final Long reviewId;
+        private final Integer providerId;
         private final String jsonData;
         private final String platform;
         private final String reason;
         
-        public BadReviewRecord(String jsonData, String platform, String reason) {
+        public BadReviewRecord(Long reviewId, Integer providerId, String jsonData, String platform, String reason) {
+            this.reviewId = reviewId;
+            this.providerId = providerId;
             this.jsonData = jsonData;
             this.platform = platform;
             this.reason = reason;
         }
         
         // Getters
+        public Long getReviewId() { return reviewId; }
+        public Integer getProviderId() { return providerId; }
         public String getJsonData() { return jsonData; }
         public String getPlatform() { return platform; }
         public String getReason() { return reason; }

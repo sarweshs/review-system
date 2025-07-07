@@ -28,8 +28,16 @@ public class EntityReviewService {
         log.info("🔍 Fetching reviews from database - page: {}, size: {}, sortBy: {}, sortDir: {}, platform: {}, minRating: {}, maxRating: {}, search: {}", 
                 page, size, sortBy, sortDir, platform, minRating, maxRating, search);
         
+        // Fix sorting for composite key properties
+        String actualSortBy = sortBy;
+        if ("reviewId".equals(sortBy)) {
+            actualSortBy = "id.reviewId";
+        } else if ("providerId".equals(sortBy)) {
+            actualSortBy = "id.providerId";
+        }
+        
         Sort sort = sortDir.equalsIgnoreCase("desc") ? 
-            Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+            Sort.by(actualSortBy).descending() : Sort.by(actualSortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
         
         Page<EntityReview> reviewsPage;
@@ -100,11 +108,12 @@ public class EntityReviewService {
         return entityReviewRepository.findByRatingBetween(minRating, maxRating);
     }
 
-    @Cacheable(value = "reviews", key = "'review_' + #reviewId")
-    public EntityReview getReviewByIdBody(Long reviewId) {
-        log.info("Fetching review with ID: {}", reviewId);
-        return entityReviewRepository.findById(reviewId)
-                .orElseThrow(() -> new RuntimeException("Review not found with ID: " + reviewId));
+    @Cacheable(value = "reviews", key = "'review_' + #reviewId + '_' + #providerId")
+    public EntityReview getReviewByIdBody(Long reviewId, Integer providerId) {
+        log.info("Fetching review with ID: {} and provider ID: {}", reviewId, providerId);
+        EntityReview.EntityReviewId id = new EntityReview.EntityReviewId(reviewId, providerId);
+        return entityReviewRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Review not found with ID: " + reviewId + " and provider ID: " + providerId));
     }
 
     @Cacheable(value = "review-stats", key = "'good_statistics'")

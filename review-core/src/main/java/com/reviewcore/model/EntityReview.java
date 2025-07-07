@@ -15,9 +15,21 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class EntityReview {
     
-    @Id
-    @Column(name = "review_id")
-    private Long reviewId;
+    @EmbeddedId
+    private EntityReviewId id;
+    
+    @Embeddable
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EntityReviewId implements java.io.Serializable {
+        
+        @Column(name = "review_id")
+        private Long reviewId;
+        
+        @Column(name = "provider_id")
+        private Integer providerId;
+    }
     
     @Column(name = "entity_id", nullable = false)
     private Integer entityId;
@@ -25,8 +37,7 @@ public class EntityReview {
     @Column(name = "platform")
     private String platform;
     
-    @Column(name = "provider_id")
-    private Integer providerId;
+    // providerId is now part of the composite primary key
     
     @Column(name = "rating", columnDefinition = "numeric(3,1)")
     private Double rating;

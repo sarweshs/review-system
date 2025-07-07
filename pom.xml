@@ -13,6 +13,7 @@
         <module>review-dashboard</module>
         <module>review-producer</module>
         <module>review-consumer</module>
+        <!--<module>review-automation-tests</module>-->
     </modules>
     <properties>
         <java.version>17</java.version>

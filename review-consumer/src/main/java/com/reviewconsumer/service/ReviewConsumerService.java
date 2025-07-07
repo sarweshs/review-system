@@ -132,8 +132,10 @@ public class ReviewConsumerService {
             // Convert the BadReviewMessage to JSON string
             String jsonData = objectMapper.writeValueAsString(badReviewMessage);
             
-            // Create BadReviewRecord entity with the actual validation reason from the message
+            // Create BadReviewRecord entity with composite primary key
             BadReviewRecord badReviewRecord = new BadReviewRecord(
+                badReviewMessage.getReviewId(), // review_id
+                badReviewMessage.getProviderId(), // provider_id
                 jsonData,
                 badReviewMessage.getPlatform(),
                 badReviewMessage.getReason()
@@ -142,8 +144,8 @@ public class ReviewConsumerService {
             // Save to database
             BadReviewRecord savedRecord = badReviewRecordRepository.save(badReviewRecord);
             
-            logger.info("Stored bad review record in database with ID: {} and reason: {}", 
-                       savedRecord.getId(), badReviewMessage.getReason());
+            logger.info("Stored bad review record in database with review ID: {} and provider ID: {} and reason: {}", 
+                       savedRecord.getId().getReviewId(), savedRecord.getId().getProviderId(), badReviewMessage.getReason());
             
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             logger.error("Failed to serialize bad review message to JSON: {}", badReviewMessage, e);

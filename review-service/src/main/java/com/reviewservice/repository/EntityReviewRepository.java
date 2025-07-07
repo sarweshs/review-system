@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @Repository
-public interface EntityReviewRepository extends JpaRepository<EntityReview, Long> {
+public interface EntityReviewRepository extends JpaRepository<EntityReview, EntityReview.EntityReviewId> {
     
     /**
      * Find reviews by platform

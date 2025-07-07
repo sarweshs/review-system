@@ -12,9 +12,62 @@ import java.time.LocalDateTime;
 @Table(name = "bad_review_records")
 public class BadReviewRecord {
     
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @EmbeddedId
+    private BadReviewRecordId id;
+    
+    @Embeddable
+    public static class BadReviewRecordId implements java.io.Serializable {
+        
+        @Column(name = "review_id")
+        private Long reviewId;
+        
+        @Column(name = "provider_id")
+        private Integer providerId;
+        
+        // Default constructor
+        public BadReviewRecordId() {}
+        
+        // Constructor with parameters
+        public BadReviewRecordId(Long reviewId, Integer providerId) {
+            this.reviewId = reviewId;
+            this.providerId = providerId;
+        }
+        
+        // Getters and Setters
+        public Long getReviewId() {
+            return reviewId;
+        }
+        
+        public void setReviewId(Long reviewId) {
+            this.reviewId = reviewId;
+        }
+        
+        public Integer getProviderId() {
+            return providerId;
+        }
+        
+        public void setProviderId(Integer providerId) {
+            this.providerId = providerId;
+        }
+        
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            
+            BadReviewRecordId that = (BadReviewRecordId) o;
+            
+            if (reviewId != null ? !reviewId.equals(that.reviewId) : that.reviewId != null) return false;
+            return providerId != null ? providerId.equals(that.providerId) : that.providerId != null;
+        }
+        
+        @Override
+        public int hashCode() {
+            int result = reviewId != null ? reviewId.hashCode() : 0;
+            result = 31 * result + (providerId != null ? providerId.hashCode() : 0);
+            return result;
+        }
+    }
     
     @Column(name = "json_data", columnDefinition = "jsonb", nullable = false)
     @JdbcTypeCode(SqlTypes.JSON)
@@ -42,12 +95,21 @@ public class BadReviewRecord {
         this.reason = reason;
     }
     
+    // Constructor with composite key
+    public BadReviewRecord(Long reviewId, Integer providerId, String jsonData, String platform, String reason) {
+        this();
+        this.id = new BadReviewRecordId(reviewId, providerId);
+        this.jsonData = jsonData;
+        this.platform = platform;
+        this.reason = reason;
+    }
+    
     // Getters and Setters
-    public Long getId() {
+    public BadReviewRecordId getId() {
         return id;
     }
     
-    public void setId(Long id) {
+    public void setId(BadReviewRecordId id) {
         this.id = id;
     }
     
