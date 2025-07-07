@@ -1,0 +1,40 @@
+{
+  "EventName": "s3:ObjectCreated:Put",
+  "Key": "reviews/2024/01/reviews_20240101.jl",
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "minio:s3",
+      "awsRegion": "us-east-1",
+      "eventTime": "2024-01-01T10:30:00.000Z",
+      "eventName": "ObjectCreated:Put",
+      "userIdentity": {
+        "principalId": "minio"
+      },
+      "requestParameters": {
+        "sourceIPAddress": "127.0.0.1"
+      },
+      "responseElements": {
+        "x-amz-request-id": "ABC123",
+        "x-minio-origin-endpoint": "http://localhost:9000"
+      },
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "configurationId": "minio-event-config",
+        "bucket": {
+          "name": "review-data",
+          "ownerIdentity": {
+            "principalId": "minio"
+          },
+          "arn": "arn:aws:s3:::review-data"
+        },
+        "object": {
+          "key": "reviews/2024/01/reviews_20240101.jl",
+          "size": 1024,
+          "eTag": "\"abc123\"",
+          "sequencer": "0A1B2C3D4E5F678901"
+        }
+      }
+    }
+  ]
+} 

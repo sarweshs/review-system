@@ -1,0 +1,16 @@
+{
+  "provider": "minio",
+  "eventType": "ObjectCreated:Put",
+  "bucket": "review-data",
+  "key": "reviews/2024/01/reviews_20240101.jl",
+  "size": 1024,
+  "etag": "\"abc123\"",
+  "timestamp": "2024-01-01T10:30:00.000Z",
+  "metadata": {
+    "eventSource": "minio:s3",
+    "awsRegion": "us-east-1",
+    "eventVersion": "2.1",
+    "contentType": "application/jsonl",
+    "uploadedBy": "data-pipeline"
+  }
+} 

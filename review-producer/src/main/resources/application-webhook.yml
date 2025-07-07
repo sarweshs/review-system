@@ -1,0 +1,12 @@
+# Webhook Configuration
+webhook:
+  api:
+    key: ${WEBHOOK_API_KEY:default-webhook-key}
+    key:
+      header: ${WEBHOOK_API_KEY_HEADER:X-API-Key}
+
+# Logging for webhook security
+logging:
+  level:
+    com.reviewproducer.config: DEBUG
+    org.springframework.security: DEBUG 

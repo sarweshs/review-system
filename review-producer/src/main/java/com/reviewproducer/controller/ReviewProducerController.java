@@ -2,6 +2,10 @@ package com.reviewproducer.controller;
 
 import com.reviewproducer.service.ReviewKafkaProducerService;
 import com.reviewproducer.service.MetricsService;
+import com.reviewproducer.service.MinIOEventService;
+import com.reviewproducer.service.StorageEventService;
+import com.reviewproducer.model.MinIOEvent;
+import com.reviewproducer.model.StorageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +19,8 @@ public class ReviewProducerController {
     
     private final ReviewKafkaProducerService kafkaProducerService;
     private final MetricsService metricsService;
+    private final MinIOEventService minIOEventService;
+    private final StorageEventService storageEventService;
     
     /**
      * Send a review to Kafka with validation
@@ -86,6 +92,56 @@ public class ReviewProducerController {
     @GetMapping("/metrics")
     public ResponseEntity<Object> getMetrics() {
         return ResponseEntity.ok(metricsService.getMetricsSummary());
+    }
+    
+    /**
+     * Handle MinIO events for uploaded .jl files
+     */
+    @PostMapping("/storage/event/minio")
+    public ResponseEntity<String> handleMinIOEvent(@RequestBody MinIOEvent event) {
+        log.info("Received MinIO event");
+        
+        try {
+            storageEventService.processMinIOEvent(event);
+            return ResponseEntity.ok("MinIO event processed successfully");
+        } catch (Exception e) {
+            log.error("Failed to process MinIO event: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Failed to process MinIO event: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Handle generic storage events (for different storage providers)
+     */
+    @PostMapping("/storage/event")
+    public ResponseEntity<String> handleStorageEvent(@RequestBody StorageEvent event) {
+        log.info("Received generic storage event from provider: {}", event.getProvider());
+        
+        try {
+            storageEventService.processStorageEvent(event);
+            return ResponseEntity.ok("Storage event processed successfully");
+        } catch (Exception e) {
+            log.error("Failed to process storage event: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Failed to process storage event: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Handle raw storage events (for manual processing)
+     */
+    @PostMapping("/storage/event/raw")
+    public ResponseEntity<String> handleRawStorageEvent(@RequestBody String eventPayload) {
+        log.info("Received raw storage event");
+        
+        try {
+            // For now, we'll just log the event payload
+            // In the future, this could be extended to handle different storage providers
+            log.info("Raw storage event payload: {}", eventPayload);
+            return ResponseEntity.ok("Raw storage event received");
+        } catch (Exception e) {
+            log.error("Failed to process raw storage event: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Failed to process raw storage event: " + e.getMessage());
+        }
     }
     
     /**

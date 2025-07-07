@@ -226,7 +226,7 @@ function displayGoodReviews(reviews) {
     reviews.forEach(review => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${review.reviewId}</td>
+            <td>${review.id.reviewId}</td>
             <td>${review.entityId}</td>
             <td><span class="platform-badge platform-${review.platform?.toLowerCase()}">${review.platform || 'N/A'}</span></td>
             <td><span class="rating ${getRatingClass(review.rating)}">${review.rating || 'N/A'}</span></td>
@@ -240,7 +240,7 @@ function displayGoodReviews(reviews) {
             </td>
             <td>${formatDate(review.reviewDate)}</td>
             <td>
-                <button class="btn btn-secondary" onclick="viewReviewDetails(${review.reviewId})">View</button>
+                <button class="btn btn-secondary" onclick="viewReviewDetails(${review.id.reviewId})">View</button>
             </td>
         `;
         tbody.appendChild(row);
@@ -256,7 +256,7 @@ function displayBadReviews(reviews) {
     reviews.forEach(review => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${review.id}</td>
+            <td>${review.id.reviewId}</td>
             <td><span class="platform-badge platform-${review.platform?.toLowerCase()}">${review.platform || 'N/A'}</span></td>
             <td><span class="rating poor">${review.reason}</span></td>
             <td>
