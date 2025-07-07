@@ -15,9 +15,21 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class ReviewerInfo {
     
-    @Id
-    @Column(name = "review_id")
-    private Long reviewId;
+    @EmbeddedId
+    private ReviewerInfoId id;
+    
+    @Embeddable
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReviewerInfoId implements java.io.Serializable {
+        
+        @Column(name = "review_id")
+        private Long reviewId;
+        
+        @Column(name = "provider_id")
+        private Integer providerId;
+    }
     
     @Column(name = "country_id")
     private Integer countryId;

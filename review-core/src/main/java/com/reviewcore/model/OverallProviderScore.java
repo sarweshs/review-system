@@ -18,6 +18,9 @@ public class OverallProviderScore {
     @EmbeddedId
     private OverallProviderScoreId id;
     
+    @Column(name = "entity_id")
+    private Integer entityId;
+    
     @Column(name = "provider")
     private String provider;
     
@@ -51,10 +54,10 @@ public class OverallProviderScore {
     @AllArgsConstructor
     public static class OverallProviderScoreId implements java.io.Serializable {
         
-        @Column(name = "entity_id")
-        private Integer entityId;
-        
         @Column(name = "provider_id")
         private Integer providerId;
+        
+        @Column(name = "review_id")
+        private Long reviewId;
     }
 } 

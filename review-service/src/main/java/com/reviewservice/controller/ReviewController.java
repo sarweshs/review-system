@@ -63,11 +63,12 @@ public class ReviewController {
     }
     
     /**
-     * Get review by ID
+     * Get review by ID and provider ID
      */
-    @GetMapping("/{reviewId}")
-    public ResponseEntity<EntityReview> getReviewById(@PathVariable(name = "reviewId") Long reviewId) {
-        return ResponseEntity.ok(entityReviewService.getReviewByIdBody(reviewId));
+    @GetMapping("/{reviewId}/{providerId}")
+    public ResponseEntity<EntityReview> getReviewById(@PathVariable(name = "reviewId") Long reviewId, 
+                                                     @PathVariable(name = "providerId") Integer providerId) {
+        return ResponseEntity.ok(entityReviewService.getReviewByIdBody(reviewId, providerId));
     }
     
     /**

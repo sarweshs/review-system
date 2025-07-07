@@ -31,15 +31,16 @@ public class BadReviewRecordController {
     }
     
     /**
-     * Get bad review record by ID
+     * Get bad review record by review ID and provider ID
      */
-    @GetMapping("/{id}")
-    public ResponseEntity<BadReviewRecord> getBadRecordById(@PathVariable(name = "id") Long id) {
+    @GetMapping("/{reviewId}/{providerId}")
+    public ResponseEntity<BadReviewRecord> getBadRecordById(@PathVariable(name = "reviewId") Long reviewId, 
+                                                           @PathVariable(name = "providerId") Integer providerId) {
         try {
-            return ResponseEntity.ok(badReviewRecordService.getBadRecordById(id));
+            return ResponseEntity.ok(badReviewRecordService.getBadRecordById(reviewId, providerId));
         } catch (RuntimeException e) {
             if (e.getMessage().contains("not found")) {
-                log.warn("Bad review record not found with id: {}", id);
+                log.warn("Bad review record not found with review ID: {} and provider ID: {}", reviewId, providerId);
                 return ResponseEntity.notFound().build();
             }
             throw e; // Re-throw other runtime exceptions
@@ -96,17 +97,18 @@ public class BadReviewRecordController {
     }
     
     /**
-     * Delete bad review record by ID
+     * Delete bad review record by review ID and provider ID
      */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteBadRecord(@PathVariable(name = "id") Long id) {
+    @DeleteMapping("/{reviewId}/{providerId}")
+    public ResponseEntity<Void> deleteBadRecord(@PathVariable(name = "reviewId") Long reviewId, 
+                                               @PathVariable(name = "providerId") Integer providerId) {
         try {
-            log.info("Deleting bad review record with id: {}", id);
-            badReviewRecordService.deleteBadRecord(id);
+            log.info("Deleting bad review record with review ID: {} and provider ID: {}", reviewId, providerId);
+            badReviewRecordService.deleteBadRecord(reviewId, providerId);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             if (e.getMessage().contains("not found")) {
-                log.warn("Bad review record not found for deletion with id: {}", id);
+                log.warn("Bad review record not found for deletion with review ID: {} and provider ID: {}", reviewId, providerId);
                 return ResponseEntity.notFound().build();
             }
             throw e; // Re-throw other runtime exceptions

@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface BadReviewRecordRepository extends JpaRepository<BadReviewRecord, Long> {
+public interface BadReviewRecordRepository extends JpaRepository<BadReviewRecord, BadReviewRecord.BadReviewRecordId> {
     
     /**
      * Find bad records by platform

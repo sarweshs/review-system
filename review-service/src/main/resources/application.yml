@@ -11,10 +11,13 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
   sql:
     init:
-      mode: always
-      schema-locations: classpath:data.sql
+      mode: never
 
 sources:
   - name: agoda

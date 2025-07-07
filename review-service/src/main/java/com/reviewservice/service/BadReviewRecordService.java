@@ -40,12 +40,13 @@ public class BadReviewRecordService {
     }
     
     /**
-     * Get bad review record by ID
+     * Get bad review record by review ID and provider ID
      */
-    @Cacheable(value = "bad-reviews", key = "'bad_id_' + #id")
-    public BadReviewRecord getBadRecordById(Long id) {
+    @Cacheable(value = "bad-reviews", key = "'bad_id_' + #reviewId + '_' + #providerId")
+    public BadReviewRecord getBadRecordById(Long reviewId, Integer providerId) {
+        BadReviewRecord.BadReviewRecordId id = new BadReviewRecord.BadReviewRecordId(reviewId, providerId);
         return badReviewRecordRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Bad review record not found with id: " + id));
+                .orElseThrow(() -> new RuntimeException("Bad review record not found with review ID: " + reviewId + " and provider ID: " + providerId));
     }
     
     /**
@@ -81,15 +82,16 @@ public class BadReviewRecordService {
     }
     
     /**
-     * Delete bad review record by ID
+     * Delete bad review record by review ID and provider ID
      */
     @Transactional
-    public void deleteBadRecord(Long id) {
+    public void deleteBadRecord(Long reviewId, Integer providerId) {
+        BadReviewRecord.BadReviewRecordId id = new BadReviewRecord.BadReviewRecordId(reviewId, providerId);
         if (badReviewRecordRepository.existsById(id)) {
             badReviewRecordRepository.deleteById(id);
-            log.info("Deleted bad review record with id: {}", id);
+            log.info("Deleted bad review record with review ID: {} and provider ID: {}", reviewId, providerId);
         } else {
-            throw new RuntimeException("Bad review record not found with id: " + id);
+            throw new RuntimeException("Bad review record not found with review ID: " + reviewId + " and provider ID: " + providerId);
         }
     }
     

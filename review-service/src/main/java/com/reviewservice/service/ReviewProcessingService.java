@@ -49,8 +49,8 @@ public class ReviewProcessingService {
             }
             
             // Process overall provider scores
-            if (reviewMessage.getOverallByProviders() != null) {
-                processOverallProviderScores(reviewMessage.getOverallByProviders(), entity.getEntityId());
+            if (reviewMessage.getOverallByProviders() != null && reviewMessage.getComment() != null) {
+                processOverallProviderScores(reviewMessage.getOverallByProviders(), entity.getEntityId(), reviewMessage.getComment().getHotelReviewId(), reviewMessage.getComment().getProviderId());
             }
             
             log.debug("Successfully processed review message for entity: {}", entity.getEntityName());
@@ -91,12 +91,15 @@ public class ReviewProcessingService {
     private void processReview(ReviewMessage reviewMessage, ReviewEntity entity) {
         ReviewMessage.ReviewComment comment = reviewMessage.getComment();
         
-        // Create entity review
+        // Create entity review with composite primary key
         EntityReview entityReview = new EntityReview();
-        entityReview.setReviewId(comment.getHotelReviewId());
+        EntityReview.EntityReviewId reviewId = new EntityReview.EntityReviewId();
+        reviewId.setReviewId(comment.getHotelReviewId());
+        reviewId.setProviderId(comment.getProviderId());
+        entityReview.setId(reviewId);
+        
         entityReview.setEntityId(entity.getEntityId());
         entityReview.setPlatform(reviewMessage.getPlatform());
-        entityReview.setProviderId(comment.getProviderId());
         entityReview.setRating(comment.getRating());
         entityReview.setRatingText(comment.getRatingText());
         entityReview.setReviewTitle(comment.getReviewTitle());
@@ -115,20 +118,24 @@ public class ReviewProcessingService {
         entityReview.setOriginalComment(comment.getOriginalComment());
         
         entityReviewRepository.save(entityReview);
-        log.debug("Saved entity review with ID: {}", entityReview.getReviewId());
+        log.debug("Saved entity review with ID: {}", entityReview.getId().getReviewId());
         
         // Process reviewer info
         if (comment.getReviewerInfo() != null) {
-            processReviewerInfo(comment.getReviewerInfo(), comment.getHotelReviewId());
+            processReviewerInfo(comment.getReviewerInfo(), comment.getHotelReviewId(), comment.getProviderId());
         }
     }
     
     /**
      * Process reviewer information
      */
-    private void processReviewerInfo(ReviewMessage.ReviewerInfoDto reviewerInfoDto, Long reviewId) {
+    private void processReviewerInfo(ReviewMessage.ReviewerInfoDto reviewerInfoDto, Long reviewId, Integer providerId) {
         ReviewerInfo reviewerInfo = new ReviewerInfo();
-        reviewerInfo.setReviewId(reviewId);
+        ReviewerInfo.ReviewerInfoId infoId = new ReviewerInfo.ReviewerInfoId();
+        infoId.setReviewId(reviewId);
+        infoId.setProviderId(providerId);
+        reviewerInfo.setId(infoId);
+        
         reviewerInfo.setCountryId(reviewerInfoDto.getCountryId());
         reviewerInfo.setCountryName(reviewerInfoDto.getCountryName());
         reviewerInfo.setFlagName(reviewerInfoDto.getFlagName());
@@ -143,20 +150,21 @@ public class ReviewProcessingService {
         reviewerInfo.setIsShowReviewedCount(reviewerInfoDto.getIsShowReviewedCount());
         
         reviewerInfoRepository.save(reviewerInfo);
-        log.debug("Saved reviewer info for review ID: {}", reviewId);
+        log.debug("Saved reviewer info for review ID: {} and provider ID: {}", reviewId, providerId);
     }
     
     /**
      * Process overall provider scores
      */
-    private void processOverallProviderScores(java.util.List<ReviewMessage.OverallProvider> providers, Integer entityId) {
+    private void processOverallProviderScores(java.util.List<ReviewMessage.OverallProvider> providers, Integer entityId, Long reviewId, Integer reviewProviderId) {
         for (ReviewMessage.OverallProvider provider : providers) {
             OverallProviderScore.OverallProviderScoreId scoreId = new OverallProviderScore.OverallProviderScoreId();
-            scoreId.setEntityId(entityId);
-            scoreId.setProviderId(provider.getProviderId());
+            scoreId.setProviderId(reviewProviderId);
+            scoreId.setReviewId(reviewId);
             
             OverallProviderScore score = new OverallProviderScore();
             score.setId(scoreId);
+            score.setEntityId(entityId);
             score.setProvider(provider.getProvider());
             score.setOverallScore(provider.getOverallScore());
             score.setReviewCount(provider.getReviewCount());
@@ -171,7 +179,8 @@ public class ReviewProcessingService {
             }
             
             overallProviderScoreRepository.save(score);
-            log.debug("Saved overall provider score for entity: {}, provider: {}", entityId, provider.getProvider());
+            log.debug("Saved overall provider score for entity: {}, provider: {}, review: {}, using review provider_id: {}", 
+                     entityId, provider.getProvider(), reviewId, reviewProviderId);
         }
     }
     

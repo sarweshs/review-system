@@ -14,6 +14,12 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class BadReviewMessage {
     
+    @JsonProperty("reviewId")
+    private Long reviewId;
+    
+    @JsonProperty("providerId")
+    private Integer providerId;
+    
     @JsonProperty("jsonData")
     private String jsonData;
     
