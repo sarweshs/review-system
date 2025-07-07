@@ -52,11 +52,11 @@ public class ReviewProducerController {
      * Send a bad review record to Kafka
      */
     @PostMapping("/review/bad")
-    public ResponseEntity<String> sendBadReview(@RequestBody BadReviewRequest request) {
+    public ResponseEntity<String> sendBadReview(@RequestBody ReviewRequest request) {
         log.info("Sending bad review for platform: {}", request.getPlatform());
         
         try {
-            kafkaProducerService.sendBadReview(request.getBadReviewJson());
+            kafkaProducerService.sendBadReview(request.getReviewJson());
             return ResponseEntity.ok("Bad review sent successfully");
         } catch (Exception e) {
             log.error("Failed to send bad review: {}", e.getMessage(), e);
@@ -65,19 +65,27 @@ public class ReviewProducerController {
     }
     
     /**
-     * Get processing metrics
+     * Send a record to Dead Letter Queue (DLQ)
      */
-    @GetMapping("/metrics")
-    public ResponseEntity<MetricsService.MetricsSummary> getMetrics() {
-        log.info("Retrieving processing metrics");
+    @PostMapping("/review/dlq")
+    public ResponseEntity<String> sendToDLQ(@RequestBody ReviewRequest request) {
+        log.info("Sending record to DLQ for platform: {}", request.getPlatform());
         
         try {
-            MetricsService.MetricsSummary metrics = metricsService.getMetricsSummary();
-            return ResponseEntity.ok(metrics);
+            kafkaProducerService.sendToDLQ(request.getReviewJson());
+            return ResponseEntity.ok("Record sent to DLQ successfully");
         } catch (Exception e) {
-            log.error("Failed to retrieve metrics: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            log.error("Failed to send record to DLQ: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Failed to send record to DLQ: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Get metrics
+     */
+    @GetMapping("/metrics")
+    public ResponseEntity<Object> getMetrics() {
+        return ResponseEntity.ok(metricsService.getMetricsSummary());
     }
     
     /**
@@ -95,46 +103,10 @@ public class ReviewProducerController {
         private String reviewJson;
         private String platform;
         
-        // Getters and Setters
-        public String getReviewJson() {
-            return reviewJson;
-        }
-        
-        public void setReviewJson(String reviewJson) {
-            this.reviewJson = reviewJson;
-        }
-        
-        public String getPlatform() {
-            return platform;
-        }
-        
-        public void setPlatform(String platform) {
-            this.platform = platform;
-        }
-    }
-    
-    /**
-     * Request DTO for bad review operations
-     */
-    public static class BadReviewRequest {
-        private String badReviewJson;
-        private String platform;
-        
-        // Getters and Setters
-        public String getBadReviewJson() {
-            return badReviewJson;
-        }
-        
-        public void setBadReviewJson(String badReviewJson) {
-            this.badReviewJson = badReviewJson;
-        }
-        
-        public String getPlatform() {
-            return platform;
-        }
-        
-        public void setPlatform(String platform) {
-            this.platform = platform;
-        }
+        // Getters and setters
+        public String getReviewJson() { return reviewJson; }
+        public void setReviewJson(String reviewJson) { this.reviewJson = reviewJson; }
+        public String getPlatform() { return platform; }
+        public void setPlatform(String platform) { this.platform = platform; }
     }
 } 

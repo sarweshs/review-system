@@ -20,17 +20,22 @@ public class ReviewValidationServiceTest {
     void testValidReview() {
         String validReview = """
             {
-                "hotelId": "12345",
+                "hotelId": 12345,
                 "hotelName": "Test Hotel",
                 "platform": "Booking.com",
-                "rating": 4.5,
-                "review_text": "Great hotel!"
+                "comment": {
+                    "hotelReviewId": 987654321,
+                    "providerId": 334,
+                    "rating": 4.5,
+                    "reviewComments": "Great hotel!"
+                }
             }
             """;
         
         ReviewValidationService.ValidationResult result = validationService.validateReview(validReview);
         assertTrue(result.isValid());
         assertNull(result.getReason());
+        assertFalse(result.shouldSendToDLQ());
     }
     
     @Test
@@ -40,35 +45,67 @@ public class ReviewValidationServiceTest {
                 "hotelId": null,
                 "hotelName": "Test Hotel",
                 "platform": "Agoda",
-                "rating": 4.0
+                "comment": {
+                    "hotelReviewId": 987654321,
+                    "providerId": 334,
+                    "rating": 4.0
+                }
             }
             """;
         
         ReviewValidationService.ValidationResult result = validationService.validateReview(invalidReview);
         assertFalse(result.isValid());
         assertEquals("HOTEL_ID_NULL", result.getReason());
+        assertFalse(result.shouldSendToDLQ());
     }
     
     @Test
-    void testNullHotelName() {
+    void testMissingReviewId() {
         String invalidReview = """
             {
-                "hotelId": "12345",
-                "hotelName": null,
-                "platform": "Expedia",
-                "rating": 3.5
+                "hotelId": 12345,
+                "hotelName": "Test Hotel",
+                "platform": "Booking.com",
+                "comment": {
+                    "providerId": 334,
+                    "rating": 4.5,
+                    "reviewComments": "Great hotel!"
+                }
             }
             """;
         
         ReviewValidationService.ValidationResult result = validationService.validateReview(invalidReview);
         assertFalse(result.isValid());
-        assertEquals("HOTEL_NAME_NULL", result.getReason());
+        assertEquals("REVIEW_ID_MISSING", result.getReason());
+        assertTrue(result.shouldSendToDLQ());
     }
     
     @Test
-    void testMissingHotelId() {
+    void testMissingProviderId() {
         String invalidReview = """
             {
+                "hotelId": 12345,
+                "hotelName": "Test Hotel",
+                "platform": "Booking.com",
+                "comment": {
+                    "hotelReviewId": 987654321,
+                    "rating": 4.5,
+                    "reviewComments": "Great hotel!"
+                }
+            }
+            """;
+        
+        ReviewValidationService.ValidationResult result = validationService.validateReview(invalidReview);
+        assertFalse(result.isValid());
+        assertEquals("PROVIDER_ID_MISSING", result.getReason());
+        assertTrue(result.shouldSendToDLQ());
+    }
+    
+    @Test
+    void testMissingCommentSection() {
+        String invalidReview = """
+            {
+                "hotelId": 12345,
                 "hotelName": "Test Hotel",
                 "platform": "Booking.com",
                 "rating": 4.5
@@ -77,59 +114,89 @@ public class ReviewValidationServiceTest {
         
         ReviewValidationService.ValidationResult result = validationService.validateReview(invalidReview);
         assertFalse(result.isValid());
-        assertEquals("HOTEL_ID_NULL", result.getReason());
+        assertEquals("COMMENT_SECTION_MISSING", result.getReason());
+        assertTrue(result.shouldSendToDLQ());
     }
     
     @Test
-    void testMissingHotelName() {
+    void testInvalidReviewIdValue() {
         String invalidReview = """
             {
-                "hotelId": "12345",
-                "platform": "Agoda",
-                "rating": 4.0
+                "hotelId": 12345,
+                "hotelName": "Test Hotel",
+                "platform": "Booking.com",
+                "comment": {
+                    "hotelReviewId": 0,
+                    "providerId": 334,
+                    "rating": 4.5
+                }
             }
             """;
         
         ReviewValidationService.ValidationResult result = validationService.validateReview(invalidReview);
         assertFalse(result.isValid());
-        assertEquals("HOTEL_NAME_NULL", result.getReason());
+        assertEquals("REVIEW_ID_INVALID_VALUE", result.getReason());
+        assertTrue(result.shouldSendToDLQ());
     }
     
     @Test
-    void testInvalidJson() {
-        String invalidJson = "{ invalid json }";
-        
-        ReviewValidationService.ValidationResult result = validationService.validateReview(invalidJson);
-        assertFalse(result.isValid());
-        assertTrue(result.getReason().startsWith("INVALID_JSON:"));
-    }
-    
-    @Test
-    void testExtractPlatform() {
-        String reviewWithPlatform = """
+    void testInvalidProviderIdValue() {
+        String invalidReview = """
             {
-                "hotelId": "12345",
+                "hotelId": 12345,
                 "hotelName": "Test Hotel",
                 "platform": "Booking.com",
-                "rating": 4.5
+                "comment": {
+                    "hotelReviewId": 987654321,
+                    "providerId": -1,
+                    "rating": 4.5
+                }
             }
             """;
         
-        String platform = validationService.extractPlatform(reviewWithPlatform);
-        assertEquals("Booking.com", platform);
+        ReviewValidationService.ValidationResult result = validationService.validateReview(invalidReview);
+        assertFalse(result.isValid());
+        assertEquals("PROVIDER_ID_INVALID_VALUE", result.getReason());
+        assertTrue(result.shouldSendToDLQ());
     }
     
     @Test
-    void testExtractPlatformNull() {
-        String reviewWithoutPlatform = """
+    void testExtractReviewIdInfo() {
+        String review = """
             {
-                "hotelId": "12345",
+                "hotelId": 12345,
                 "hotelName": "Test Hotel",
-                "rating": 4.5
+                "platform": "Booking.com",
+                "comment": {
+                    "hotelReviewId": 987654321,
+                    "providerId": 334,
+                    "rating": 4.5
+                }
             }
             """;
         
-        String platform = validationService.extractPlatform(reviewWithoutPlatform);
-        assertEquals("unknown", platform);
+        ReviewValidationService.ReviewIdInfo info = validationService.extractReviewIdInfo(review);
+        assertEquals(987654321L, info.getReviewId());
+        assertEquals(334, info.getProviderId());
+        assertTrue(info.hasValidIds());
+    }
+    
+    @Test
+    void testExtractReviewIdInfoWithMissingFields() {
+        String review = """
+            {
+                "hotelId": 12345,
+                "hotelName": "Test Hotel",
+                "platform": "Booking.com",
+                "comment": {
+                    "rating": 4.5
+                }
+            }
+            """;
+        
+        ReviewValidationService.ReviewIdInfo info = validationService.extractReviewIdInfo(review);
+        assertNull(info.getReviewId());
+        assertNull(info.getProviderId());
+        assertFalse(info.hasValidIds());
     }
 } 

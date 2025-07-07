@@ -3,45 +3,12 @@ server:
   grpc_listen_port: 0
 
 positions:
-  filename: /tmp/positions.yaml  # Tracks log file positions
+  filename: /tmp/positions.yaml
 
 clients:
   - url: http://loki:3100/loki/api/v1/push
-    backoff_config:
-      min_period: 1s
-      max_period: 5s
-      max_retries: 5
-    timeout: 10s
 
 scrape_configs:
-  - job_name: system
-    static_configs:
-      - targets: [localhost]
-        labels:
-          job: varlogs
-          __path__: /var/log/*.log  # System logs
-          host: ${HOSTNAME}
-
-  - job_name: docker
-    pipeline_stages:
-      - docker: { }  # Parse Docker metadata
-      - json:
-          expressions:
-            stream: stream
-            log: log
-            time: time
-            attrs: attrs
-      - labels:
-          stream:
-          container_name:
-          image:
-    static_configs:
-      - targets: [ localhost ]
-        labels:
-          job: docker
-          __path__: /var/lib/docker/containers/*/*.log
-          host: ${HOSTNAME}
-
   - job_name: review-applications
     pipeline_stages:
       - json:
@@ -58,10 +25,28 @@ scrape_configs:
       - timestamp:
           source: timestamp
           format: RFC3339Nano
+
+    relabel_configs:
+      - source_labels: [__path__]
+        regex: .*/([^/]+)\.log
+        target_label: __tmp_filename
+      - source_labels: [__tmp_filename]
+        regex: (.*?)(-error)?$
+        target_label: component
+        replacement: $1
+      - source_labels: [__tmp_filename]
+        regex: .*?-error$
+        target_label: error
+        replacement: "true"
+      - source_labels: [error]
+        regex: ""
+        target_label: error
+        replacement: "false"
+
     static_configs:
       - targets: [localhost]
         labels:
           job: review-apps
-          __path__: /logs/*.log  # Your custom app logs from volume mount
+          __path__: /logs/*.log
           host: ${HOSTNAME}
           application: review-system

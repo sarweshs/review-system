@@ -23,6 +23,9 @@ public class ReviewKafkaProducerService {
     @Value("${kafka.topic.bad-reviews:bad_review_records}")
     private String badReviewsTopic;
     
+    @Value("${kafka.topic.dlq:dlq}")
+    private String dlqTopic;
+    
     /**
      * Send a valid review to Kafka
      */
@@ -50,6 +53,19 @@ public class ReviewKafkaProducerService {
     }
     
     /**
+     * Send a record to Dead Letter Queue (DLQ)
+     */
+    public void sendToDLQ(String dlqRecordJson) {
+        try {
+            kafkaTemplate.send(dlqTopic, dlqRecordJson);
+            log.debug("Sent record to DLQ topic: {}", dlqTopic);
+        } catch (Exception e) {
+            log.error("Failed to send record to DLQ: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to send record to DLQ", e);
+        }
+    }
+    
+    /**
      * Process a single review line with validation
      */
     public void processReviewLine(String reviewJson) {
@@ -61,6 +77,19 @@ public class ReviewKafkaProducerService {
                 // Send valid review to Kafka
                 sendValidReview(reviewJson);
                 log.debug("Valid review sent to Kafka");
+            } else if (validationResult.shouldSendToDLQ()) {
+                // Extract platform and review ID info for DLQ record
+                String platform = validationService.extractPlatform(reviewJson);
+                ReviewValidationService.ReviewIdInfo reviewIdInfo = validationService.extractReviewIdInfo(reviewJson);
+                
+                // Create and send DLQ record
+                String dlqRecord = createDLQRecord(reviewJson, platform, validationResult.getReason(), reviewIdInfo);
+                sendToDLQ(dlqRecord);
+                
+                // Log the DLQ record
+                log.warn("Record sent to DLQ - Platform: {}, Reason: {}, ReviewId: {}, ProviderId: {}", 
+                        platform, validationResult.getReason(), 
+                        reviewIdInfo.getReviewId(), reviewIdInfo.getProviderId());
             } else {
                 // Extract platform for bad record
                 String platform = validationService.extractPlatform(reviewJson);
@@ -69,7 +98,7 @@ public class ReviewKafkaProducerService {
                 String badReviewRecord = createBadReviewRecord(reviewJson, platform, validationResult.getReason());
                 sendBadReview(badReviewRecord);
                 
-                // Log the bad record as requested
+                // Log the bad record
                 log.warn("Bad review record detected - Platform: {}, Reason: {}, Record: {}", 
                         platform, validationResult.getReason(), reviewJson);
             }
@@ -85,26 +114,73 @@ public class ReviewKafkaProducerService {
     }
     
     /**
+     * Create a DLQ record JSON for records with missing critical fields
+     */
+    private String createDLQRecord(String originalJson, String platform, String reason, ReviewValidationService.ReviewIdInfo reviewIdInfo) {
+        try {
+            DLQRecord dlqRecord = new DLQRecord(
+                reviewIdInfo.getReviewId(),
+                reviewIdInfo.getProviderId(),
+                originalJson,
+                platform,
+                reason,
+                System.currentTimeMillis()
+            );
+            return objectMapper.writeValueAsString(dlqRecord);
+        } catch (Exception e) {
+            log.error("Failed to create DLQ record JSON: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to create DLQ record", e);
+        }
+    }
+    
+    /**
      * Create a bad review record JSON in the specified format
      */
     private String createBadReviewRecord(String originalJson, String platform, String reason) {
         try {
             // Extract reviewId and providerId from the original JSON
-            JsonNode root = objectMapper.readTree(originalJson);
-            Long reviewId = null;
-            Integer providerId = null;
-            if (root.has("comment") && root.get("comment").has("hotelReviewId")) {
-                reviewId = root.get("comment").get("hotelReviewId").isNull() ? null : root.get("comment").get("hotelReviewId").asLong();
-            }
-            if (root.has("comment") && root.get("comment").has("providerId")) {
-                providerId = root.get("comment").get("providerId").isNull() ? null : root.get("comment").get("providerId").asInt();
-            }
-            BadReviewRecord badRecord = new BadReviewRecord(reviewId, providerId, originalJson, platform, reason);
+            ReviewValidationService.ReviewIdInfo reviewIdInfo = validationService.extractReviewIdInfo(originalJson);
+            BadReviewRecord badRecord = new BadReviewRecord(
+                reviewIdInfo.getReviewId(), 
+                reviewIdInfo.getProviderId(), 
+                originalJson, 
+                platform, 
+                reason
+            );
             return objectMapper.writeValueAsString(badRecord);
         } catch (Exception e) {
             log.error("Failed to create bad review record JSON: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to create bad review record", e);
         }
+    }
+    
+    /**
+     * DLQ record DTO for records with missing critical fields
+     */
+    private static class DLQRecord {
+        private final Long reviewId;
+        private final Integer providerId;
+        private final String originalJson;
+        private final String platform;
+        private final String reason;
+        private final Long timestamp;
+        
+        public DLQRecord(Long reviewId, Integer providerId, String originalJson, String platform, String reason, Long timestamp) {
+            this.reviewId = reviewId;
+            this.providerId = providerId;
+            this.originalJson = originalJson;
+            this.platform = platform;
+            this.reason = reason;
+            this.timestamp = timestamp;
+        }
+        
+        // Getters
+        public Long getReviewId() { return reviewId; }
+        public Integer getProviderId() { return providerId; }
+        public String getOriginalJson() { return originalJson; }
+        public String getPlatform() { return platform; }
+        public String getReason() { return reason; }
+        public Long getTimestamp() { return timestamp; }
     }
     
     /**

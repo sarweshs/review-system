@@ -26,6 +26,18 @@ public class KafkaConfig {
     @Value("${kafka.topic.bad-reviews:bad_review_records}")
     private String badReviewsTopic;
     
+    @Value("${kafka.topic.dlq:dlq}")
+    private String dlqTopic;
+    
+    @Value("${kafka.dlq.retention.ms:604800000}") // 7 days default
+    private long dlqRetentionMs;
+    
+    @Value("${kafka.dlq.retention.bytes:1073741824}") // 1GB default
+    private long dlqRetentionBytes;
+    
+    @Value("${kafka.dlq.segment.ms:86400000}") // 1 day default
+    private long dlqSegmentMs;
+    
     @Bean
     public ProducerFactory<String, String> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
@@ -63,6 +75,22 @@ public class KafkaConfig {
         return TopicBuilder.name(badReviewsTopic)
                 .partitions(3)
                 .replicas(1)
+                .build();
+    }
+    
+    @Bean
+    public org.apache.kafka.clients.admin.NewTopic dlqTopic() {
+        return TopicBuilder.name(dlqTopic)
+                .partitions(3)
+                .replicas(1)
+                .configs(Map.of(
+                    "retention.ms", String.valueOf(dlqRetentionMs),
+                    "retention.bytes", String.valueOf(dlqRetentionBytes),
+                    "segment.ms", String.valueOf(dlqSegmentMs),
+                    "cleanup.policy", "delete",
+                    "delete.retention.ms", "1000", // Immediate deletion after retention
+                    "min.compaction.lag.ms", "0"
+                ))
                 .build();
     }
 } 

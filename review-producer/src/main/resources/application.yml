@@ -47,6 +47,15 @@ kafka:
   topic:
     reviews: good_review_records
     bad-reviews: bad_review_records
+    dlq: dlq
+  
+  # DLQ retention configuration
+  dlq:
+    retention:
+      ms: 604800000      # 7 days in milliseconds
+      bytes: 1073741824  # 1GB in bytes
+    segment:
+      ms: 86400000       # 1 day segment rotation
 
 # Enhanced Logging configuration
 logging:

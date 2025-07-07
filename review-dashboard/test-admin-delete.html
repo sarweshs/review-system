@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin Delete Functionality</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-primary { background-color: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Admin Delete Functionality Test</h1>
+    
+    <div class="test-section">
+        <h2>Issue Description</h2>
+        <p><strong>Problem:</strong> When deleting a record in admin.html, the page was going blank instead of showing the admin dashboard.</p>
+        
+        <h3>Root Cause</h3>
+        <ul>
+            <li>The <code>AdminController.deleteSource()</code> method was redirecting to <code>/admin</code></li>
+            <li>The redirect was not properly handling model attributes (message/error)</li>
+            <li>This caused the page to appear blank or not display properly</li>
+        </ul>
+        
+        <h3>Solution Implemented</h3>
+        <ul>
+            <li>Changed redirect to use query parameters: <code>redirect:/admin?message=...</code></li>
+            <li>Updated <code>DashboardController.adminPage()</code> to handle query parameters</li>
+            <li>Ensured proper message/error display after redirects</li>
+            <li>Set active menu to "source-config" when there are messages/errors</li>
+        </ul>
+    </div>
+    
+    <div class="test-section success">
+        <h2>Files Modified</h2>
+        <ul>
+            <li><code>review-dashboard/src/main/java/com/reviewdashboard/controller/AdminController.java</code></li>
+            <li><code>review-dashboard/src/main/java/com/reviewdashboard/controller/DashboardController.java</code></li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Steps</h2>
+        <ol>
+            <li>Start the review-dashboard application</li>
+            <li>Navigate to the admin page</li>
+            <li>Go to "Configure Source" section</li>
+            <li>Try to delete a source record</li>
+            <li>Verify that the page redirects properly and shows success/error message</li>
+            <li>Verify that the "Configure Source" tab remains active</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>Expected Behavior</h2>
+        <ul>
+            <li>✅ Delete operation should complete successfully</li>
+            <li>✅ Page should redirect to admin dashboard</li>
+            <li>✅ Success message should be displayed</li>
+            <li>✅ "Configure Source" tab should be active</li>
+            <li>✅ Updated source list should be shown</li>
+            <li>❌ No more blank page after delete</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Code Changes Summary</h2>
+        
+        <h3>AdminController.java - deleteSource() method</h3>
+        <pre><code>// Before:
+return "redirect:/admin";
+
+// After:
+return "redirect:/admin?message=Source deleted successfully!";
+</code></pre>
+        
+        <h3>DashboardController.java - adminPage() method</h3>
+        <pre><code>// Added query parameter handling:
+@RequestParam(value = "message", required = false) String message,
+@RequestParam(value = "error", required = false) String error
+
+// Added message/error processing:
+if (message != null && !message.trim().isEmpty()) {
+    model.addAttribute("message", message);
+    model.addAttribute("activeMenu", "source-config");
+}
+</code></pre>
+    </div>
+    
+    <div class="test-section success">
+        <h2>Status: ✅ FIXED</h2>
+        <p>The admin delete functionality has been fixed and should no longer result in a blank page.</p>
+    </div>
+</body>
+</html> 

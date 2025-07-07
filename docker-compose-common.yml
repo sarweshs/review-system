@@ -115,6 +115,9 @@ services:
       - type: bind
         source: ./promtail-config.yaml
         target: /etc/promtail/config.yml
+      - type: bind
+        source: ./logs
+        target: /logs
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./logs:/logs

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.stream.Collectors;
 
@@ -38,7 +39,9 @@ public class DashboardController {
     }
 
     @GetMapping("/admin")
-    public String adminPage(@AuthenticationPrincipal OidcUser oidcUser, Model model) {
+    public String adminPage(@AuthenticationPrincipal OidcUser oidcUser, Model model,
+                           @RequestParam(value = "message", required = false) String message,
+                           @RequestParam(value = "error", required = false) String error) {
         log.debug("Admin page requested by user: {}", oidcUser.getPreferredUsername());
         
         model.addAttribute("username", oidcUser.getPreferredUsername());
@@ -48,6 +51,18 @@ public class DashboardController {
         
         // Add service URL to model for frontend JavaScript
         model.addAttribute("serviceUrl", serviceUrl);
+        
+        // Handle messages and errors from redirects
+        if (message != null && !message.trim().isEmpty()) {
+            model.addAttribute("message", message);
+            // Set active menu to source-config when there's a message (form submission)
+            model.addAttribute("activeMenu", "source-config");
+        }
+        if (error != null && !error.trim().isEmpty()) {
+            model.addAttribute("error", error);
+            // Set active menu to source-config when there's an error (form submission)
+            model.addAttribute("activeMenu", "source-config");
+        }
         
         // Fetch sources from backend
         try {

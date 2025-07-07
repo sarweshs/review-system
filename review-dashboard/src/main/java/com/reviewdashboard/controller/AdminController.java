@@ -50,20 +50,11 @@ public class AdminController {
         try {
             restTemplate.postForObject(serviceUrl + "/api/sources", request, com.reviewcore.model.ReviewSource.class);
             logger.info("Source added successfully");
-            model.addAttribute("message", "Source added successfully!");
+            return "redirect:/admin?message=Source added successfully!";
         } catch (Exception e) {
             logger.error("Failed to add source", e);
-            model.addAttribute("error", "Failed to add source: " + e.getMessage());
+            return "redirect:/admin?error=Failed to add source: " + e.getMessage();
         }
-        // Refresh sources list
-        try {
-            com.reviewcore.model.ReviewSource[] sources = restTemplate.getForObject(serviceUrl + "/api/sources", com.reviewcore.model.ReviewSource[].class);
-            model.addAttribute("sources", sources != null ? List.of(sources) : List.of());
-        } catch (Exception e) {
-            model.addAttribute("sources", List.of());
-        }
-        model.addAttribute("activeMenu", "source-config");
-        return "admin";
     }
     
     @GetMapping("/reviews")
@@ -86,13 +77,15 @@ public class AdminController {
             ResponseEntity<Void> resp = restTemplate.postForEntity(serviceUrl + "/api/sources/admin/source/update-active", form, Void.class);
             if (resp.getStatusCode() == HttpStatus.NO_CONTENT) {
                 logger.info("Source status updated");
+                return "redirect:/admin?message=Source status updated successfully!";
+            } else {
+                logger.warn("Unexpected response status: {}", resp.getStatusCode());
+                return "redirect:/admin?error=Failed to update source status: Unexpected response";
             }
-            model.addAttribute("message", "Source status updated!");
         } catch (Exception e) {
             logger.error("Failed to update source status", e);
-            model.addAttribute("error", "Failed to update source status: " + e.getMessage());
+            return "redirect:/admin?error=Failed to update source status: " + e.getMessage();
         }
-        return "redirect:/admin";
     }
 
     @PostMapping("/source/delete")
@@ -104,12 +97,15 @@ public class AdminController {
             ResponseEntity<Void> resp = restTemplate.postForEntity(serviceUrl + "/api/sources/admin/source/delete", form, Void.class);
             if (resp.getStatusCode() == HttpStatus.NO_CONTENT) {
                 logger.info("Source deleted with id={}", id);
+                // Use flash attributes for the message since we're redirecting
+                return "redirect:/admin?message=Source deleted successfully!";
+            } else {
+                logger.warn("Unexpected response status: {}", resp.getStatusCode());
+                return "redirect:/admin?error=Failed to delete source: Unexpected response";
             }
-            model.addAttribute("message", "Source deleted!");
         } catch (Exception e) {
             logger.error("Failed to delete source with id={}", id, e);
-            model.addAttribute("error", "Failed to delete source: " + e.getMessage());
+            return "redirect:/admin?error=Failed to delete source: " + e.getMessage();
         }
-        return "redirect:/admin";
     }
 } 

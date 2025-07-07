@@ -99,7 +99,9 @@ start_service() {
   check_and_handle_port "$port" "$service"
 
   # Start the service
-  nohup java -jar "$service/target/$service-0.0.1-SNAPSHOT.jar" > "$service.log" 2>&1 &
+  mkdir -p ./logs
+
+  nohup java -jar "$service/target/$service-0.0.1-SNAPSHOT.jar" > "./logs/$service.log" 2>&1 &
   local pid=$!
   echo $pid > "$service.pid"
   echo -e "${GREEN}Started $service (PID: $pid) on port $port${NC}"
@@ -185,7 +187,7 @@ done
 echo -e "${GREEN}=== All services started successfully! ===${NC}"
 echo -e "${BLUE}Service logs:${NC}"
 for service in "${startup_order[@]}"; do
-  echo -e "${YELLOW}- $service:${NC} tail -f $(pwd)/$service.log"
+  echo -e "${YELLOW}- $service:${NC} tail -f $(pwd)/logs/$service.log"
 done
 
 echo -e "\n${BLUE}To stop services:${NC} ./stop-review-system.sh"

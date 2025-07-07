@@ -71,6 +71,7 @@ test:
     topics:
       good-reviews: good_review_records
       bad-reviews: bad_review_records
+      dlq: dlq
     consumer:
       group-id: test-consumer-group
       timeout-ms: 30000
