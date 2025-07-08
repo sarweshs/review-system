@@ -185,3 +185,11 @@ review-python contains Python utilities for testing and integration.
 ## 📘 Additional Resources
 
 - 📄 [ZUZU-Review System – High-Level Design (PDF)](./ZUZU-Review-System-High-Level-Design.pdf)
+
+## Future Improvements
+- Real-time streaming when using AWS/GCP/Azure(e.g., AWS Lambda + SQS/Kinesis integration, GCP Cloud Functions + Pub/Sub, Azure Functions + Event Grid).
+- For PoC webhooks can be used to trigger events. (MinIO supports webhooks, but not Storj)
+- Integration tests for end-to-end testing.
+- Disaster recovery and backup strategies.
+- Enhanced security measures (e.g., OAuth2, JWT ) for APIs.
+- Blue/Green deployments for zero-downtime updates.

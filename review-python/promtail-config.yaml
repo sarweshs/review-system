@@ -14,8 +14,8 @@ scrape_configs:
       - targets:
           - localhost
         labels:
-          application: review-system
           job: review-apps
+          application: review-system
           __path__: /logs/*.log
 
     pipeline_stages:
@@ -25,22 +25,13 @@ scrape_configs:
           expression: '(?P<component>[^.]+)(-[^.]*)?\.log'
           replace: '$1'
           source: filename
+      - regex:
+          expression: '(?P<timestamp>\d{2}:\d{2}:\d{2},\d{3}) \|-\s*(?P<level>[A-Z]+)'
+      - timestamp:
+          source: timestamp
+          format: '15:04:05,000'
+          location: Local
       - labels:
           filename:
           component:
-
-      # Extract log details from the log line itself
-      - regex:
-          expression: '^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) \[(?P<thread>[^\]]+)\] (?P<level>\w+)\s+(?P<class>[^\s]+)\s+-\s+(?P<msg>.*)$'
-
-      - timestamp:
-          source: ts
-          format: '2006-01-02 15:04:05.000'
-
-      - labels:
           level:
-          thread:
-          class:
-
-      - output:
-          source: msg

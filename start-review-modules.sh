@@ -191,7 +191,7 @@ for service in "${startup_order[@]}"; do
 done
 
 echo -e "\n${BLUE}To stop services:${NC} ./stop-review-system.sh"
-echo -e "${BLUE}To view logs:${NC} tail -f review-service.log review-consumer.log review-producer.log review-dashboard.log"
+echo -e "${BLUE}To view logs:${NC} tail -f ./logs/review-service.log ./logs/review-consumer.log ./logs/review-producer.log ./logs/review-dashboard.log"
 
 # Remove the trap since we want services to keep running
 trap - EXIT
