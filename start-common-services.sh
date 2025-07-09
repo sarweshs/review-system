@@ -1,9 +1,28 @@
 #!/bin/bash
 
+# Default docker-compose file
+DOCKER_COMPOSE_FILE="docker-compose-common.yml"
+
+# Parse command line arguments
+if [ $# -eq 1 ]; then
+    if [ "$1" = "clickstack" ]; then
+        DOCKER_COMPOSE_FILE="docker-compose-clickstack.yml"
+        echo "🔧 Using clickstack configuration: $DOCKER_COMPOSE_FILE"
+    else
+        echo "⚠️ Unknown argument: $1"
+        echo "Usage: $0 [clickstack]"
+        echo "  - No argument: Use docker-compose-common.yml (default)"
+        echo "  - clickstack: Use docker-compose-clickstack.yml"
+        exit 1
+    fi
+else
+    echo "🔧 Using default configuration: $DOCKER_COMPOSE_FILE"
+fi
+
 # Start common services and wait for them
 start_common_services() {
     echo "🚀 Starting common services..."
-    docker-compose -f docker-compose-common.yml up -d
+    docker-compose -f $DOCKER_COMPOSE_FILE up -d
 
     echo -n "⏳ Waiting for services"
     for service in postgres redis kafka vault; do
@@ -18,13 +37,13 @@ start_common_services() {
 check_service_health() {
     case $1 in
         postgres)
-            docker-compose -f docker-compose-common.yml exec postgres pg_isready -U postgres &>/dev/null
+            docker-compose -f $DOCKER_COMPOSE_FILE exec postgres pg_isready -U postgres &>/dev/null
             ;;
         redis)
-            docker-compose -f docker-compose-common.yml exec redis redis-cli ping | grep -q "PONG"
+            docker-compose -f $DOCKER_COMPOSE_FILE exec redis redis-cli ping | grep -q "PONG"
             ;;
         kafka)
-            docker-compose -f docker-compose-common.yml exec kafka \
+            docker-compose -f $DOCKER_COMPOSE_FILE exec kafka \
               kafka-topics.sh --bootstrap-server localhost:9092 --list &>/dev/null
             ;;
         vault)

@@ -1,0 +1,66 @@
+receivers:
+  filelog:
+    include:
+      - /var/log/**/*.log             # Linux
+      - /var/log/syslog
+      - /var/log/messages
+      - /private/var/log/*.log       # macOS
+      - ./logs/*.log
+      - /app/logs/*.log
+
+    start_at: beginning # modify to collect new files only
+
+  hostmetrics:
+    collection_interval: 1s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.time:
+            enabled: true
+          system.cpu.utilization:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.usage:
+            enabled: true
+          system.memory.utilization:
+            enabled: true
+      filesystem:
+        metrics:
+          system.filesystem.usage:
+            enabled: true
+          system.filesystem.utilization:
+            enabled: true
+      paging:
+        metrics:
+          system.paging.usage:
+            enabled: true
+          system.paging.utilization:
+            enabled: true
+          system.paging.faults:
+            enabled: true
+      disk:
+      load:
+      network:
+      processes:
+
+exporters:
+  otlp:
+    endpoint: localhost:4317
+    headers:
+      authorization: c9170d6b-388f-4db9-970c-5e15a688d47f
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 262144  # 262,144 items × ~8 KB per item ≈ 2 GB
+
+service:
+  pipelines:
+    logs:
+      receivers: [filelog]
+      exporters: [otlp]
+    metrics:
+      receivers: [hostmetrics]
+      exporters: [otlp]
